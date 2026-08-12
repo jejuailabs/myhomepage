@@ -39,6 +39,23 @@ export default function MyPage() {
     [],
   );
 
+  /** 이미지에서 읽어온 항목을 채운다. 이미 적어 둔 값은 덮어쓰지 않는다. */
+  const applyExtracted = useCallback((fields: Record<string, string>, summary: string) => {
+    setProfile((prev) => {
+      if (!prev) return prev;
+      const current = basicAnswers(prev.tastes);
+      const merged = { ...current };
+      for (const [key, value] of Object.entries(fields)) {
+        if (value && !current[key]) merged[key] = value;
+      }
+      return {
+        ...prev,
+        tastes: applyBasics(prev, merged),
+        heroSummary: prev.heroSummary || summary,
+      };
+    });
+  }, []);
+
   const handleSave = async () => {
     if (!appUser || !profile) return;
 
@@ -122,6 +139,7 @@ export default function MyPage() {
               profile={profile}
               onPatch={patch}
               onBusyChange={setPhotoBusy}
+              onExtracted={applyExtracted}
             />
           </div>
           <Mp3Step uid={appUser.uid} profile={profile} onPatch={patch} />
@@ -151,59 +169,85 @@ function PhotoStep({
   profile,
   onPatch,
   onBusyChange,
+  onExtracted,
 }: {
   uid: string;
   profile: Profile;
   onPatch: (p: Partial<Profile>) => void;
   onBusyChange: (busy: boolean) => void;
+  onExtracted: (fields: Record<string, string>, summary: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState<'upload' | 'portrait' | null>(null);
+  const [busy, setBusy] = useState<'upload' | 'extract' | 'portrait' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const photo = profile.profileImageUrl || profile.heroImageUrl;
 
   useEffect(() => onBusyChange(busy !== null), [busy, onBusyChange]);
 
   /**
-   * 올린 사진을 그대로 카드에 쓰면 안 된다.
-   * 가로 사진이나 여러 장을 붙인 지면을 올리는 경우가 있어서,
-   * AI 로 인물만 뽑아낸 세로 인물사진을 만들어 카드에 쓴다.
+   * 올린 이미지는 두 갈래로 쓰인다.
+   *   원본  -> profileImageUrl : 이 사람의 홈피 화면을 꽉 채우는 그림
+   *   인물만 -> heroImageUrl    : 메인 허브 카드에 쓰는 세로 인물사진
+   * 지면을 통째로 카드에 넣으면 작아서 아무것도 안 보이므로 인물만 따로 뽑는다.
    */
-  const makePortrait = async (file: File) => {
-    setBusy('portrait');
-    const form = new FormData();
-    form.append('file', file);
-    const res = await fetch('/api/portrait', { method: 'POST', body: form });
-    const data = (await res.json()) as { dataUrl?: string; error?: string };
-    if (!res.ok || !data.dataUrl) throw new Error(data.error ?? '인물 사진을 만들지 못했습니다.');
-    const url = await uploadGenerated(uid, 'portrait.jpg', data.dataUrl);
-    onPatch({ profileImageUrl: url, heroImageUrl: url });
-  };
-
   const handle = async (file: File) => {
     setError(null);
+    const problems: string[] = [];
+
     setBusy('upload');
     try {
-      // 원본을 먼저 저장해 둔다. 변환이 실패해도 사진은 남는다.
       const raw = await uploadFile(uid, 'photo.jpg', file);
+      // 원본은 홈피용. 카드용 인물사진이 나오기 전까지는 카드에도 임시로 쓴다.
       onPatch({ profileImageUrl: raw, heroImageUrl: raw });
-      await makePortrait(file);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? `${err.message} 올려주신 사진이 그대로 쓰입니다.`
-          : '사진을 처리하지 못했습니다.',
-      );
-    } finally {
       setBusy(null);
+      setError(err instanceof Error ? err.message : '사진을 올리지 못했습니다.');
+      return;
     }
+
+    // 이미지에 적힌 항목 읽기 — 실패해도 사진은 이미 올라가 있다
+    setBusy('extract');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/extract', { method: 'POST', body: form });
+      const data = (await res.json()) as {
+        fields?: Record<string, string>;
+        summary?: string;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? '항목을 읽지 못했습니다.');
+      onExtracted(data.fields ?? {}, data.summary ?? '');
+    } catch (err) {
+      problems.push(err instanceof Error ? err.message : '항목을 읽지 못했습니다.');
+    }
+
+    // 카드용 인물사진 뽑기
+    setBusy('portrait');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/portrait', { method: 'POST', body: form });
+      const data = (await res.json()) as { dataUrl?: string; error?: string };
+      if (!res.ok || !data.dataUrl) throw new Error(data.error ?? '인물 사진을 만들지 못했습니다.');
+      const url = await uploadGenerated(uid, 'portrait.jpg', data.dataUrl);
+      onPatch({ heroImageUrl: url });
+    } catch (err) {
+      problems.push(
+        (err instanceof Error ? err.message : '인물 사진을 만들지 못했습니다.') +
+          ' 카드에는 올리신 사진이 그대로 쓰입니다.',
+      );
+    }
+
+    setBusy(null);
+    if (problems.length) setError(problems.join(' '));
   };
 
   return (
     <Step
       n={1}
       title="사진 한 장"
-      desc="올리면 인물만 뽑아 세로 인물사진으로 만들어 드립니다. 이 사진이 화면을 꽉 채웁니다."
+      desc="올린 이미지는 내 홈피 화면이 되고, 여기서 인물만 뽑아 메인 카드에 씁니다. 적힌 항목도 자동으로 읽어옵니다."
     >
       <button
         type="button"

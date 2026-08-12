@@ -17,15 +17,17 @@ export default function ProfileView({
   displayName,
   slug,
   preview = false,
+  viewerUid,
 }: {
   profile: Profile;
   displayName: string;
   slug: string;
   preview?: boolean;
-  /** 아래 둘은 더 이상 쓰지 않지만 호출부 호환을 위해 남겨둔다 */
+  /** 보고 있는 사람의 uid — 본인이면 수정 버튼을 보여준다 */
   viewerUid?: string;
   onSave?: (next: Profile) => Promise<void>;
 }) {
+  const isOwner = Boolean(viewerUid && viewerUid === profile.uid);
   const accent = getConcept(profile.conceptId).vars['--c-accent'];
   const [qrOpen, setQrOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
@@ -58,15 +60,27 @@ export default function ProfileView({
           >
             ← 허브로
           </Link>
-          <button
-            type="button"
-            onClick={() => setQrOpen(true)}
-            aria-label="QR 코드 만들기"
-            className="rounded-full px-3.5 py-2 text-[12px] font-bold text-white shadow-md"
-            style={{ background: accent }}
-          >
-            QR
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setQrOpen(true)}
+              aria-label="QR 코드 만들기"
+              className="rounded-full px-3.5 py-2 text-[12px] font-bold text-white shadow-md"
+              style={{ background: accent }}
+            >
+              QR
+            </button>
+            {isOwner && (
+              <Link
+                href="/me"
+                aria-label="내 홈피 수정하기"
+                className="grid h-[30px] w-[30px] place-items-center rounded-full text-white shadow-md"
+                style={{ background: accent }}
+              >
+                <PencilGlyph />
+              </Link>
+            )}
+          </div>
         </div>
       )}
 
@@ -88,5 +102,18 @@ export default function ProfileView({
         />
       )}
     </div>
+  );
+}
+
+function PencilGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
