@@ -8,7 +8,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { applyBasics, basicAnswers, BASIC_FIELDS } from '@/lib/basics';
 import { fetchProfile, saveProfile } from '@/lib/repo';
 import { emptyProfile, type Profile } from '@/lib/types';
-import { uploadFile } from '@/lib/upload';
+import { uploadFile, uploadGenerated } from '@/lib/upload';
 
 /**
  * 넣는 것은 둘뿐이다 — 사진 한 장, 음악 한 곡.
@@ -135,16 +135,55 @@ function PhotoStep({
   onPatch: (p: Partial<Profile>) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'upload' | 'portrait' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const photo = profile.profileImageUrl || profile.heroImageUrl;
 
+  /**
+   * 올린 사진을 그대로 카드에 쓰면 안 된다.
+   * 가로 사진이나 여러 장을 붙인 지면을 올리는 경우가 있어서,
+   * AI 로 인물만 뽑아낸 세로 인물사진을 만들어 카드에 쓴다.
+   */
+  const makePortrait = async (file: File) => {
+    setBusy('portrait');
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch('/api/portrait', { method: 'POST', body: form });
+    const data = (await res.json()) as { dataUrl?: string; error?: string };
+    if (!res.ok || !data.dataUrl) throw new Error(data.error ?? '인물 사진을 만들지 못했습니다.');
+    const url = await uploadGenerated(uid, 'portrait.jpg', data.dataUrl);
+    onPatch({ profileImageUrl: url, heroImageUrl: url });
+  };
+
+  const handle = async (file: File) => {
+    setError(null);
+    setBusy('upload');
+    try {
+      // 원본을 먼저 저장해 둔다. 변환이 실패해도 사진은 남는다.
+      const raw = await uploadFile(uid, 'photo.jpg', file);
+      onPatch({ profileImageUrl: raw, heroImageUrl: raw });
+      await makePortrait(file);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `${err.message} 올려주신 사진이 그대로 쓰입니다.`
+          : '사진을 처리하지 못했습니다.',
+      );
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
-    <Step n={1} title="사진 한 장" desc="이 사진이 홈피 화면을 꽉 채웁니다. 세로 사진이 잘 맞습니다.">
+    <Step
+      n={1}
+      title="사진 한 장"
+      desc="올리면 인물만 뽑아 세로 인물사진으로 만들어 드립니다. 이 사진이 화면을 꽉 채웁니다."
+    >
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        disabled={busy}
+        disabled={busy !== null}
         className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-dashed border-hub-border bg-hub-bg"
       >
         {photo ? (
@@ -156,33 +195,34 @@ function PhotoStep({
           </span>
         )}
         {busy && (
-          <span className="absolute inset-0 grid place-items-center bg-black/50 text-[13px] text-white">
-            올리는 중…
+          <span className="absolute inset-0 grid place-items-center whitespace-pre-line bg-black/55 px-6 text-center text-[13px] leading-relaxed text-white">
+            {busy === 'upload' ? '사진 올리는 중…' : '인물 사진 만드는 중…\n20초쯤 걸려요'}
           </span>
         )}
       </button>
+
+      {photo && !busy && (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="mt-2 w-full rounded-xl border border-hub-border py-2.5 text-[13px] font-semibold"
+        >
+          다른 사진으로 다시 만들기
+        </button>
+      )}
+
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
         hidden
-        onChange={async (e) => {
+        onChange={(e) => {
           const file = e.target.files?.[0];
           e.target.value = '';
-          if (!file) return;
-          setBusy(true);
-          setError(null);
-          try {
-            const url = await uploadFile(uid, 'photo.jpg', file);
-            onPatch({ profileImageUrl: url, heroImageUrl: url });
-          } catch (err) {
-            setError(err instanceof Error ? err.message : '올리지 못했습니다.');
-          } finally {
-            setBusy(false);
-          }
+          if (file) void handle(file);
         }}
       />
-      {error && <p className="mt-2 text-[12px] text-red-500">{error}</p>}
+      {error && <p className="mt-2 text-[12px] leading-snug text-red-500">{error}</p>}
     </Step>
   );
 }
