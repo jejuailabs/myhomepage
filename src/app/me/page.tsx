@@ -39,22 +39,48 @@ export default function MyPage() {
     [],
   );
 
+  /**
+   * 사진·음악처럼 시간이 걸리는 작업이 끝나면 곧바로 저장한다.
+   * 저장을 안 누른 채 허브로 나가면 올린 사진이 통째로 날아갔다.
+   */
+  const autoSave = useCallback(
+    async (next: Partial<Profile>) => {
+      if (!appUser) return;
+      setProfile((prev) => {
+        if (!prev) return prev;
+        const merged = { ...prev, ...next };
+        void saveProfile(appUser.uid, merged).catch((e) =>
+          console.error('자동 저장 실패', e),
+        );
+        return merged;
+      });
+    },
+    [appUser],
+  );
+
   /** 이미지에서 읽어온 항목을 채운다. 이미 적어 둔 값은 덮어쓰지 않는다. */
-  const applyExtracted = useCallback((fields: Record<string, string>, summary: string) => {
-    setProfile((prev) => {
-      if (!prev) return prev;
-      const current = basicAnswers(prev.tastes);
-      const merged = { ...current };
-      for (const [key, value] of Object.entries(fields)) {
-        if (value && !current[key]) merged[key] = value;
-      }
-      return {
-        ...prev,
-        tastes: applyBasics(prev, merged),
-        heroSummary: prev.heroSummary || summary,
-      };
-    });
-  }, []);
+  const applyExtracted = useCallback(
+    (fields: Record<string, string>, summary: string) => {
+      setProfile((prev) => {
+        if (!prev) return prev;
+        const current = basicAnswers(prev.tastes);
+        const merged = { ...current };
+        for (const [key, value] of Object.entries(fields)) {
+          if (value && !current[key]) merged[key] = value;
+        }
+        const next = {
+          ...prev,
+          tastes: applyBasics(prev, merged),
+          heroSummary: prev.heroSummary || summary,
+        };
+        if (appUser) {
+          void saveProfile(appUser.uid, next).catch((e) => console.error('자동 저장 실패', e));
+        }
+        return next;
+      });
+    },
+    [appUser],
+  );
 
   const handleSave = async () => {
     if (!appUser || !profile) return;
@@ -137,12 +163,12 @@ export default function MyPage() {
             <PhotoStep
               uid={appUser.uid}
               profile={profile}
-              onPatch={patch}
+              onPatch={autoSave}
               onBusyChange={setPhotoBusy}
               onExtracted={applyExtracted}
             />
           </div>
-          <Mp3Step uid={appUser.uid} profile={profile} onPatch={patch} />
+          <Mp3Step uid={appUser.uid} profile={profile} onPatch={autoSave} />
           <SummaryStep profile={profile} onPatch={patch} />
           <BasicsStep profile={profile} onPatch={patch} />
           <VisibilityStep profile={profile} onPatch={patch} />
@@ -173,7 +199,7 @@ function PhotoStep({
 }: {
   uid: string;
   profile: Profile;
-  onPatch: (p: Partial<Profile>) => void;
+  onPatch: (p: Partial<Profile>) => void | Promise<void>;
   onBusyChange: (busy: boolean) => void;
   onExtracted: (fields: Record<string, string>, summary: string) => void;
 }) {
@@ -247,7 +273,7 @@ function PhotoStep({
     <Step
       n={1}
       title="사진 한 장"
-      desc="올린 이미지는 내 홈피 화면이 되고, 여기서 인물만 뽑아 메인 카드에 씁니다. 적힌 항목도 자동으로 읽어옵니다."
+      desc="올린 이미지는 내 홈피 화면이 되고, 여기서 인물만 뽑아 메인 카드에 씁니다. 올리면 곧바로 저장됩니다."
     >
       <button
         type="button"
@@ -303,7 +329,7 @@ function Mp3Step({
 }: {
   uid: string;
   profile: Profile;
-  onPatch: (p: Partial<Profile>) => void;
+  onPatch: (p: Partial<Profile>) => void | Promise<void>;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);

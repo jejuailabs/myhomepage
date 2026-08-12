@@ -18,15 +18,26 @@ export default function HubPage() {
   const redirectChecked = useRef(false);
 
   /**
-   * 로그인했는데 아직 홈피를 안 만든 사람은 곧바로 홈피 빌더로 보낸다.
+   * 로그인했는데 아직 홈피를 안 만든 사람은 한 번만 빌더로 보낸다.
+   *
+   * 예전에는 조건만 맞으면 매번 보냈는데, 사진을 올리고 저장하지 않은 채
+   * 허브로 나오면 계속 빌더로 되돌려보내 빠져나갈 수 없었다.
+   * 브라우저 세션당 한 번으로 제한해 갇히지 않게 한다.
    * (Firestore 조회가 실패한 경우에는 보내지 않는다 — 빈 것과 못 읽은 것은 다르다)
    */
   useEffect(() => {
     if (!appUser || redirectChecked.current) return;
     redirectChecked.current = true;
+
+    const KEY = 'heroes-builder-sent';
+    if (sessionStorage.getItem(KEY) === '1') return;
+
     fetchProfile(appUser.uid)
       .then((profile) => {
-        if (isProfileEmpty(profile)) router.replace('/me');
+        if (isProfileEmpty(profile)) {
+          sessionStorage.setItem(KEY, '1');
+          router.replace('/me');
+        }
       })
       .catch((e) => console.error('프로필 확인 실패', e));
   }, [appUser, router]);
