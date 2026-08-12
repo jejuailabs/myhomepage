@@ -23,6 +23,9 @@ export default function MyPage() {
   const [tab, setTab] = useState<'edit' | 'preview'>('edit');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  /** 사진 생성은 화면 맨 위에서 도는데 저장 버튼은 맨 아래라, 진행 상황이 안 보인다 */
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!appUser) return;
@@ -38,6 +41,17 @@ export default function MyPage() {
 
   const handleSave = async () => {
     if (!appUser || !profile) return;
+
+    // 아직 사진을 만드는 중이면 그 자리로 올려서 진행 상황을 보여준다
+    if (photoBusy) {
+      // 부드러운 스크롤 대신 즉시 이동한다. 기다리게 하지 않는 것이 목적이고,
+      // 애니메이션 도중에는 진행 상황이 여전히 안 보인다.
+      photoRef.current?.scrollIntoView({ block: 'center' });
+      setToast('인물 사진을 만드는 중입니다. 끝나면 저장해 주세요.');
+      setTimeout(() => setToast(null), 4000);
+      return;
+    }
+
     setSaving(true);
     try {
       await saveProfile(appUser.uid, profile);
@@ -102,7 +116,14 @@ export default function MyPage() {
         />
       ) : (
         <div className="space-y-5 px-5 py-5">
-          <PhotoStep uid={appUser.uid} profile={profile} onPatch={patch} />
+          <div ref={photoRef}>
+            <PhotoStep
+              uid={appUser.uid}
+              profile={profile}
+              onPatch={patch}
+              onBusyChange={setPhotoBusy}
+            />
+          </div>
           <Mp3Step uid={appUser.uid} profile={profile} onPatch={patch} />
           <SummaryStep profile={profile} onPatch={patch} />
           <BasicsStep profile={profile} onPatch={patch} />
@@ -118,7 +139,7 @@ export default function MyPage() {
           disabled={saving}
           className="w-full rounded-2xl bg-hub-text py-3.5 text-[15px] font-bold text-hub-bg disabled:opacity-60"
         >
-          {saving ? '저장 중…' : '저장하기'}
+          {saving ? '저장 중…' : photoBusy ? '인물 사진 만드는 중…' : '저장하기'}
         </button>
       </div>
     </main>
@@ -129,15 +150,19 @@ function PhotoStep({
   uid,
   profile,
   onPatch,
+  onBusyChange,
 }: {
   uid: string;
   profile: Profile;
   onPatch: (p: Partial<Profile>) => void;
+  onBusyChange: (busy: boolean) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<'upload' | 'portrait' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const photo = profile.profileImageUrl || profile.heroImageUrl;
+
+  useEffect(() => onBusyChange(busy !== null), [busy, onBusyChange]);
 
   /**
    * 올린 사진을 그대로 카드에 쓰면 안 된다.
