@@ -32,10 +32,13 @@ export interface TasteItem {
   category?: string;
   /** 값 (예: 닭갈비) */
   label: string;
+  /** 답변에서 생성한 이미지 — 항목마다 한 장 */
+  imageUrl?: string;
 }
 export interface BucketItem {
   rank: number;
   label: string;
+  imageUrl?: string;
 }
 export interface ImageLabel {
   imageUrl: string;
@@ -77,6 +80,8 @@ export interface Profile {
   strengths: ImageCaption[];
   loved: ImageLabel[];
   happyMoments: { imageUrl: string }[];
+  /** 어느 슬롯에도 매이지 않은 여분 이미지 */
+  gallery?: string[];
 
   closingText: string;
   subTagline: string;

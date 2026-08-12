@@ -6,6 +6,7 @@ import { getConcept } from '@/lib/concepts';
 import type { Profile } from '@/lib/types';
 import AudioPlayer from '../AudioPlayer';
 import QrModal from '../QrModal';
+import MagazineView from './MagazineView';
 import { SKINS, type Skin } from './skins';
 
 /**
@@ -37,6 +38,7 @@ export default function ProfileView({
   const concept = getConcept(profile.conceptId);
   const skin = SKINS[concept.id];
   const v = concept.vars;
+  const isMagazine = concept.id === 'ocean_magazine';
 
   const [qrOpen, setQrOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -86,6 +88,73 @@ export default function ProfileView({
   };
 
   const t = { editing, masked, session };
+
+  /** 상단 고정 버튼 (허브 / 글 고치기 / QR) */
+  const chrome = !preview && (
+    <div className="fixed top-4 z-40 flex w-full max-w-frame items-center justify-between px-4">
+      <Link
+        href="/"
+        className="rounded-full px-3.5 py-2 text-[12px] font-semibold shadow-md backdrop-blur"
+        style={{ background: v['--c-surface'], color: v['--c-text'] }}
+      >
+        ← 허브로
+      </Link>
+      <div className="flex items-center gap-2">
+        {canEdit && !editing && (
+          <button
+            type="button"
+            onClick={startEdit}
+            className="rounded-full px-3.5 py-2 text-[12px] font-semibold shadow-md backdrop-blur"
+            style={{ background: v['--c-surface'], color: v['--c-text'] }}
+          >
+            글 고치기
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setQrOpen(true)}
+          aria-label="QR 코드 만들기"
+          className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-bold text-white shadow-md"
+          style={{ background: v['--c-accent'] }}
+        >
+          <QrGlyph />
+          QR
+        </button>
+      </div>
+    </div>
+  );
+
+  const extras = (
+    <>
+      {qrOpen && (
+        <QrModal
+          url={shareUrl}
+          title={`${displayName}님의 홈피`}
+          accent={v['--c-accent']}
+          onClose={() => setQrOpen(false)}
+        />
+      )}
+      {!preview && !editing && p.mp3Url && (
+        <AudioPlayer
+          src={p.mp3Url}
+          slug={slug}
+          autoplay={p.mp3Autoplay}
+          accent={v['--c-accent']}
+        />
+      )}
+    </>
+  );
+
+  // 매거진 컨셉은 전용 지면 레이아웃을 쓴다 (편집 중에는 기존 폼형 화면)
+  if (isMagazine && !editing && !masked) {
+    return (
+      <div className="relative">
+        {chrome}
+        <MagazineView profile={p} displayName={displayName} />
+        {extras}
+      </div>
+    );
+  }
 
   return (
     <div
