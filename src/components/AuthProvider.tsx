@@ -8,7 +8,7 @@ import {
   type User,
 } from 'firebase/auth';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { getFirebaseAuth, isFirebaseEnabled } from '@/lib/firebase';
+import { getFirebaseAuth, useMock } from '@/lib/firebase';
 import { ensureUserDoc } from '@/lib/repo';
 import type { AppUser } from '@/lib/types';
 
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isFirebaseEnabled) {
+    if (useMock) {
       // 목업 모드: 로그인 상태만 localStorage 로 흉내내어 UI 흐름을 확인한다.
       const signedIn = localStorage.getItem(MOCK_KEY) === '1';
       setAppUser(signedIn ? MOCK_APP_USER : null);
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(async () => {
-    if (!isFirebaseEnabled) {
+    if (useMock) {
       localStorage.setItem(MOCK_KEY, '1');
       setAppUser(MOCK_APP_USER);
       setUser({ uid: MOCK_APP_USER.uid, displayName: MOCK_APP_USER.displayName } as User);
@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    if (!isFirebaseEnabled) {
+    if (useMock) {
       localStorage.removeItem(MOCK_KEY);
       setAppUser(null);
       setUser(null);
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ user, appUser, loading, signIn, logout, mock: !isFirebaseEnabled }}>
+    <Ctx.Provider value={{ user, appUser, loading, signIn, logout, mock: useMock }}>
       {children}
     </Ctx.Provider>
   );

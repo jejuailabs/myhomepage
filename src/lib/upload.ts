@@ -1,7 +1,7 @@
 'use client';
 
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { getBucket, isFirebaseEnabled } from './firebase';
+import { getBucket, useMock } from './firebase';
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
@@ -20,7 +20,7 @@ export async function uploadFile(uid: string, path: string, file: File): Promise
     );
   }
 
-  if (!isFirebaseEnabled) {
+  if (useMock) {
     return await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result));

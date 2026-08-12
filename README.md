@@ -83,9 +83,11 @@ npx firebase deploy --only firestore:rules,storage
 
 ## Vercel 배포
 
-GitHub 저장소에 push 하면 Vercel이 자동 빌드/배포합니다. Vercel 대시보드에서는
-**환경변수(`NEXT_PUBLIC_FIREBASE_*`)만** 등록해 두면 됩니다. 프로덕션에서는
-`NEXT_PUBLIC_USE_MOCK` 을 등록하지 마세요(등록 시 목업 데이터가 노출됩니다).
+GitHub 저장소(`jejuailabs/myhomepage`)에 push 하면 Vercel이 자동 빌드/배포합니다.
+Vercel 대시보드에서는 **환경변수 6개(`NEXT_PUBLIC_FIREBASE_*`)만** 등록하면 됩니다.
+
+- `NEXT_PUBLIC_USE_MOCK` 은 **등록하지 마세요.** 목업은 이 값이 정확히 `true` 일 때만 켜집니다.
+- 환경변수를 빠뜨리면 가짜 데이터가 노출되는 대신 "불러오지 못했습니다" 오류가 납니다(의도된 동작).
 
 ## 구조
 

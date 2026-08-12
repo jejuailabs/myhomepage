@@ -13,18 +13,19 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { getDb, isFirebaseEnabled } from './firebase';
+import { getDb, useMock } from './firebase';
 import { mockBySlug, mockHeroCards, MOCK_ENTRIES } from './mockData';
 import type { AppUser, HeroCard, Profile, UserStatus } from './types';
 import { emptyProfile } from './types';
 
 /**
- * 데이터 접근 계층.
- * Firebase 미설정 시 목업으로 동작하므로, 화면 컴포넌트는 이 모듈만 바라보면 된다.
+ * 데이터 접근 계층. 화면 컴포넌트는 이 모듈만 바라보면 된다.
+ * NEXT_PUBLIC_USE_MOCK=true 일 때만 목업으로 동작하고, 그 외에는 항상 Firestore 를 쓴다
+ * (환경변수 누락 시 가짜 데이터가 실서비스에 노출되는 것을 막기 위함).
  */
 
 export async function fetchHeroCards(): Promise<HeroCard[]> {
-  if (!isFirebaseEnabled) return mockHeroCards();
+  if (useMock) return mockHeroCards();
 
   const db = getDb();
   const usersSnap = await getDocs(
@@ -62,7 +63,7 @@ export async function fetchHeroCards(): Promise<HeroCard[]> {
 export async function fetchBySlug(
   slug: string,
 ): Promise<{ user: AppUser; profile: Profile } | null> {
-  if (!isFirebaseEnabled) return mockBySlug(slug);
+  if (useMock) return mockBySlug(slug);
 
   const db = getDb();
   const snap = await getDocs(
@@ -78,7 +79,7 @@ export async function fetchBySlug(
 }
 
 export async function fetchUser(uid: string): Promise<AppUser | null> {
-  if (!isFirebaseEnabled) {
+  if (useMock) {
     return MOCK_ENTRIES.find((e) => e.user.uid === uid)?.user ?? null;
   }
   const snap = await getDoc(doc(getDb(), 'users', uid));
@@ -86,7 +87,7 @@ export async function fetchUser(uid: string): Promise<AppUser | null> {
 }
 
 export async function fetchProfile(uid: string): Promise<Profile | null> {
-  if (!isFirebaseEnabled) {
+  if (useMock) {
     return MOCK_ENTRIES.find((e) => e.user.uid === uid)?.profile ?? null;
   }
   const snap = await getDoc(doc(getDb(), 'profiles', uid));
@@ -110,7 +111,7 @@ export async function ensureUserDoc(params: {
     createdAt: Date.now(),
     order: 999,
   };
-  if (!isFirebaseEnabled) return base;
+  if (useMock) return base;
 
   const db = getDb();
   const ref = doc(db, 'users', params.uid);
@@ -123,7 +124,7 @@ export async function ensureUserDoc(params: {
 }
 
 export async function saveProfile(uid: string, profile: Profile): Promise<void> {
-  if (!isFirebaseEnabled) {
+  if (useMock) {
     // 목업 모드에서는 로컬 스토리지에만 저장한다(배포 전 UI 확인용).
     localStorage.setItem(`mock-profile-${uid}`, JSON.stringify(profile));
     return;
@@ -136,14 +137,14 @@ export async function saveProfile(uid: string, profile: Profile): Promise<void> 
 }
 
 export async function updateSlug(uid: string, slug: string): Promise<void> {
-  if (!isFirebaseEnabled) return;
+  if (useMock) return;
   await updateDoc(doc(getDb(), 'users', uid), { slug });
 }
 
 /* ---------- 관리자 ---------- */
 
 export async function fetchAllUsers(): Promise<AppUser[]> {
-  if (!isFirebaseEnabled) return MOCK_ENTRIES.map((e) => e.user);
+  if (useMock) return MOCK_ENTRIES.map((e) => e.user);
   const snap = await getDocs(collection(getDb(), 'users'));
   return snap.docs
     .map((d) => ({ uid: d.id, ...d.data() }) as AppUser)
@@ -151,12 +152,12 @@ export async function fetchAllUsers(): Promise<AppUser[]> {
 }
 
 export async function setUserStatus(uid: string, status: UserStatus): Promise<void> {
-  if (!isFirebaseEnabled) return;
+  if (useMock) return;
   await updateDoc(doc(getDb(), 'users', uid), { status });
 }
 
 export async function saveUserOrder(orders: { uid: string; order: number }[]): Promise<void> {
-  if (!isFirebaseEnabled) return;
+  if (useMock) return;
   const db = getDb();
   const batch = writeBatch(db);
   orders.forEach(({ uid, order }) => batch.update(doc(db, 'users', uid), { order }));
