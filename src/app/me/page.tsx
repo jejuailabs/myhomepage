@@ -385,7 +385,7 @@ function Step({
   return (
     <section className="rounded-2xl border border-hub-border bg-hub-surface p-4">
       <div className="mb-3 flex items-baseline gap-2.5">
-        <span className="font-serif text-[20px] leading-none text-hub-muted">
+        <span className="text-[20px] font-semibold leading-none text-hub-muted">
           {String(n).padStart(2, '0')}
         </span>
         <div>

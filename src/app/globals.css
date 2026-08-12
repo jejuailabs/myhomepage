@@ -12,9 +12,10 @@
     --hub-border: 229 225 218;
     --hub-accent: 232 217 190;
 
-    --font-sans: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR';
-    --font-serif: 'Nanum Myeongjo', Georgia;
-    --font-hand: 'Nanum Pen Script', cursive;
+    /* 전부 Pretendard 하나로 통일한다 */
+    --font-sans: 'Pretendard Variable', 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR';
+    --font-serif: var(--font-sans);
+    --font-hand: var(--font-sans);
   }
 
   .dark {

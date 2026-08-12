@@ -97,7 +97,7 @@ export default function HeroCarousel({ cards }: { cards: HeroCard[] }) {
               )}
 
               <div className="absolute inset-x-0 bottom-0 px-6 pb-7">
-                <h2 className="font-serif text-[30px] leading-none tracking-tight text-white">
+                <h2 className="text-[30px] font-semibold leading-none tracking-tight text-white">
                   {card.displayName}
                 </h2>
 
@@ -113,20 +113,16 @@ export default function HeroCarousel({ cards }: { cards: HeroCard[] }) {
                   </p>
                 )}
 
-                {/* 기본 항목 — 비공개여도 그대로 보여준다 */}
+                {/* 기본 항목 — 비공개여도 그대로 보여준다. 줄바꿈 없이 한 줄에 담는다 */}
                 {card.basics.length > 0 && (
-                  <dl className="mt-4 border-t border-white/25 pt-3.5">
-                    <div className="flex flex-wrap gap-x-6 gap-y-2">
-                      {card.basics.map((b) => (
-                        <div key={b.label}>
-                          <dt className="text-[9px] tracking-[0.22em] text-white/50">
-                            {b.label.replace(/^좋아하는\s*/, '').toUpperCase()}
-                          </dt>
-                          <dd className="mt-0.5 font-serif text-[15px] text-white">{b.value}</dd>
-                        </div>
-                      ))}
-                    </div>
-                  </dl>
+                  <p className="mt-3.5 truncate border-t border-white/25 pt-3 text-[14px] text-white/90">
+                    {card.basics.map((b, i) => (
+                      <span key={b.label}>
+                        {i > 0 && <span className="mx-2 text-white/40">·</span>}
+                        {b.value}
+                      </span>
+                    ))}
+                  </p>
                 )}
               </div>
             </button>

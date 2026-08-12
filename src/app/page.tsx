@@ -62,14 +62,7 @@ export default function HubPage() {
     <main className="mx-auto flex h-[100dvh] w-full max-w-frame flex-col bg-hub-bg">
       {/* 헤더 */}
       <header className="flex items-center justify-between px-5 pb-3 pt-5">
-        <div>
-          <h1 className="font-serif text-[22px] font-bold leading-tight tracking-tight">
-            조천리 부녀회 <span className="italic">Heroes</span>
-          </h1>
-          <p className="mt-0.5 text-[11px] tracking-wide text-hub-muted">
-            우리 마을 사람들의 이야기
-          </p>
-        </div>
+        <h1 className="text-[22px] font-bold leading-tight tracking-tight">Jocheon Heroes</h1>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {signedIn && (
