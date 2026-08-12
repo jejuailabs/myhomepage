@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* 메인 허브 전용 라이트/다크 토큰 */
+  :root {
+    --hub-bg: 250 249 246;
+    --hub-surface: 255 255 255;
+    --hub-text: 28 27 25;
+    --hub-muted: 122 117 110;
+    --hub-border: 229 225 218;
+    --hub-accent: 232 217 190;
+
+    --font-sans: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR';
+    --font-serif: 'Nanum Myeongjo', Georgia;
+    --font-hand: 'Nanum Pen Script', cursive;
+  }
+
+  .dark {
+    --hub-bg: 16 16 18;
+    --hub-surface: 28 28 31;
+    --hub-text: 240 238 234;
+    --hub-muted: 154 150 144;
+    --hub-border: 55 55 60;
+    --hub-accent: 108 92 70;
+  }
+
+  html,
+  body {
+    @apply h-full;
+  }
+
+  body {
+    @apply bg-hub-bg text-hub-text font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  /* 크래프트 종이 질감 (순수 CSS) */
+  .paper-grain {
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.35) 0 2px, transparent 3px),
+      radial-gradient(circle at 70% 60%, rgba(0, 0, 0, 0.05) 0 2px, transparent 3px),
+      radial-gradient(circle at 45% 85%, rgba(0, 0, 0, 0.04) 0 1px, transparent 2px);
+    background-size: 24px 24px, 31px 31px, 17px 17px;
+  }
+}
