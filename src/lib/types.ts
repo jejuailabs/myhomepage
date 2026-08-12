@@ -26,7 +26,11 @@ export interface AppUser {
 }
 
 export interface TasteItem {
-  icon: string;
+  /** 구버전 호환용. 새 디자인에서는 렌더링하지 않는다. */
+  icon?: string;
+  /** 항목 이름 (예: 좋아하는 음식) */
+  category?: string;
+  /** 값 (예: 닭갈비) */
   label: string;
 }
 export interface BucketItem {
@@ -36,6 +40,7 @@ export interface BucketItem {
 export interface ImageLabel {
   imageUrl: string;
   label: string;
+  category?: string;
 }
 export interface ImageCaption {
   imageUrl: string;
@@ -67,6 +72,8 @@ export interface Profile {
   bucketList: BucketItem[];
   dreamTravel: ImageLabel;
   dreamLearn: ImageLabel;
+  /** 어린 시절 꿈꾸던 직업 */
+  childhoodDream?: string;
   strengths: ImageCaption[];
   loved: ImageLabel[];
   happyMoments: { imageUrl: string }[];
