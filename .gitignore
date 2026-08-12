@@ -10,6 +10,11 @@ build/
 .env.local
 .env*.local
 
+# 서비스 계정 키 (관리자 권한 — 절대 커밋 금지)
+serviceAccount.json
+*serviceaccount*.json
+*-firebase-adminsdk-*.json
+
 # vercel
 .vercel
 

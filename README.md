@@ -78,8 +78,35 @@ Firebase 없이도 6명의 샘플 데이터로 전체 화면(허브 / 개별 홈
 npx firebase deploy --only firestore:rules,storage
 ```
 
-첫 관리자는 Firestore 콘솔에서 해당 `users/{uid}` 문서의 `role` 을 `admin`, `status` 를 `approved` 로 직접 바꿔 지정합니다
-(보안 규칙상 본인이 스스로 승격할 수 없습니다).
+## 서비스 계정 키 (운영 스크립트용)
+
+**서비스 계정 키는 `.env.local` 에 넣으면 안 됩니다.** `.env.local` 의 값은 전부 `NEXT_PUBLIC_`
+접두사가 붙어 **빌드 시 브라우저 번들에 그대로 포함**되므로, 방문자 누구나 소스에서 관리자 키를
+꺼내갈 수 있게 됩니다. 그러면 Firestore 보안 규칙이 전부 무력화됩니다.
+
+대신 이렇게 씁니다.
+
+1. Firebase 콘솔 > 프로젝트 설정 > 서비스 계정 > "새 비공개 키 생성"
+2. 받은 JSON 을 프로젝트 루트에 **`serviceAccount.json`** 으로 저장 (`.gitignore` 처리되어 커밋 안 됨)
+3. 아래 명령으로 사용 — Node 에서만 실행되고 브라우저로는 나가지 않습니다.
+
+```bash
+npm run admin -- list
+```
+
+| 명령 | 하는 일 |
+| --- | --- |
+| `npm run admin -- list` | 회원 목록(uid/role/status/이름) 출력 |
+| `npm run admin -- make-admin <이메일>` | **첫 관리자 지정** (role=admin + 승인) |
+| `npm run admin -- approve <이메일>` | 승인 → 허브에 공개 |
+| `npm run admin -- reject <이메일>` | 비공개 처리 |
+
+첫 관리자는 본인이 사이트에서 **한 번 로그인한 뒤** `make-admin` 을 실행하면 됩니다
+(보안 규칙상 본인이 스스로 승격할 수는 없습니다). Firestore 콘솔에서 `users/{uid}` 문서의
+`role`/`status` 를 직접 고쳐도 동일합니다.
+
+> 키가 유출됐다면(채팅·메일·스크린샷 등에 노출 포함) Google Cloud 콘솔 > IAM > 서비스 계정에서
+> 해당 키를 **삭제**하고 새 키를 발급하세요. 키 하나로 보안 규칙을 무시한 전체 데이터 접근이 가능합니다.
 
 ## Vercel 배포
 
