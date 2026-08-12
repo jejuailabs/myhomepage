@@ -45,9 +45,9 @@ export default function MyPage() {
     try {
       await saveProfile(appUser.uid, profile);
       setToast(
-        appUser.status === 'approved'
-          ? '저장했습니다. 허브에 반영됩니다.'
-          : '저장했습니다. 관리자 승인 후 허브에 공개됩니다.',
+        appUser.status === 'rejected'
+          ? '저장했습니다. 다만 관리자가 비공개 처리한 상태라 허브에는 보이지 않습니다.'
+          : '저장했습니다. 허브에 반영됩니다.',
       );
     } catch (e) {
       console.error(e);

@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             slug: makeSlug(u.uid),
             authProvider: 'google',
             role: 'member',
-            status: 'pending',
+            status: 'approved',
             createdAt: Date.now(),
             order: 999,
           });

@@ -122,11 +122,30 @@ export async function fetchProfile(uid: string): Promise<Profile | null> {
   if (useMock) {
     return MOCK_ENTRIES.find((e) => e.user.uid === uid)?.profile ?? null;
   }
-  const snap = await getDoc(doc(getDb(), 'profiles', uid));
-  return snap.exists() ? ({ uid, ...snap.data() } as Profile) : null;
+  return withTimeout(
+    getDoc(doc(getDb(), 'profiles', uid)).then((snap) =>
+      snap.exists() ? ({ uid, ...snap.data() } as Profile) : null,
+    ),
+  );
 }
 
-/** 최초 로그인 시 users/{uid} 문서를 만들어 둔다(승인 대기 상태). */
+/** 홈피를 아직 안 만든 상태인지(= 빌더로 보내야 하는지) 판단한다. */
+export function isProfileEmpty(profile: Profile | null): boolean {
+  if (!profile) return true;
+  return (
+    !profile.heroImageUrl &&
+    !profile.profileImageUrl &&
+    !profile.slogan &&
+    !profile.heroSummary &&
+    profile.tastes.length === 0
+  );
+}
+
+/**
+ * 최초 로그인 시 users/{uid} 문서를 만들어 둔다.
+ * 승인 절차 없이 바로 사용할 수 있도록 approved 로 생성하고,
+ * 문제가 있는 홈피만 관리자가 사후에 비공개(rejected) 처리한다.
+ */
 export async function ensureUserDoc(params: {
   uid: string;
   displayName: string;
@@ -139,7 +158,7 @@ export async function ensureUserDoc(params: {
     slug: makeSlug(params.uid),
     authProvider: 'google',
     role: 'member',
-    status: 'pending',
+    status: 'approved',
     createdAt: Date.now(),
     order: 999,
   };

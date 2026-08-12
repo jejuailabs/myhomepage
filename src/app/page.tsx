@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import HeroCarousel from '@/components/HeroCarousel';
 import ThemeToggle from '@/components/ThemeToggle';
-import { fetchHeroCards } from '@/lib/repo';
+import { fetchHeroCards, fetchProfile, isProfileEmpty } from '@/lib/repo';
 import type { HeroCard } from '@/lib/types';
 
 export default function HubPage() {
@@ -13,6 +14,22 @@ export default function HubPage() {
   const [cards, setCards] = useState<HeroCard[] | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const redirectChecked = useRef(false);
+
+  /**
+   * 로그인했는데 아직 홈피를 안 만든 사람은 곧바로 홈피 빌더로 보낸다.
+   * (Firestore 조회가 실패한 경우에는 보내지 않는다 — 빈 것과 못 읽은 것은 다르다)
+   */
+  useEffect(() => {
+    if (!appUser || redirectChecked.current) return;
+    redirectChecked.current = true;
+    fetchProfile(appUser.uid)
+      .then((profile) => {
+        if (isProfileEmpty(profile)) router.replace('/me');
+      })
+      .catch((e) => console.error('프로필 확인 실패', e));
+  }, [appUser, router]);
 
   useEffect(() => {
     fetchHeroCards()
@@ -88,7 +105,7 @@ export default function HubPage() {
           <div className="flex items-center justify-between text-xs text-hub-muted">
             <span>
               <b className="text-hub-text">{appUser?.displayName}</b> 님으로 로그인됨
-              {appUser?.status === 'pending' && ' · 승인 대기중'}
+              {appUser?.status === 'rejected' && ' · 관리자가 비공개 처리함'}
             </span>
             <div className="flex items-center gap-3">
               {appUser?.role === 'admin' && (

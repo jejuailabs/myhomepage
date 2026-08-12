@@ -21,10 +21,11 @@ service cloud.firestore {
       // 허브 카드는 비로그인 사용자도 봐야 하므로 읽기는 공개
       allow read: if true;
 
-      // 최초 로그인 시 본인 문서 생성. role/status/order 는 스스로 올릴 수 없다.
+      // 최초 로그인 시 본인 문서 생성. 승인 절차 없이 바로 쓸 수 있도록 approved 로 만든다.
+      // 단 role 은 스스로 admin 으로 올릴 수 없다.
       allow create: if isSelf(uid)
         && request.resource.data.role == 'member'
-        && request.resource.data.status == 'pending';
+        && request.resource.data.status == 'approved';
 
       // 본인은 표시 이름/슬러그만, 승인·역할·정렬은 관리자만
       allow update: if isAdmin()
