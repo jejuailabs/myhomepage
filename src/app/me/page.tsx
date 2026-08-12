@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Card, FileButton, ImageField, TextField } from '@/components/editor/Fields';
+import GenerateImagery from '@/components/editor/GenerateImagery';
 import TemplateImport from '@/components/editor/TemplateImport';
 import ProfileView from '@/components/homepage/ProfileView';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -113,6 +114,7 @@ export default function MyPage() {
       ) : (
         <div className="space-y-4 px-5 py-5">
           <TemplateImport profile={profile} onApply={patch} />
+          <GenerateImagery uid={appUser.uid} profile={profile} onPatch={patch} />
 
           {/* 컨셉 선택 */}
           <Card title="디자인 컨셉">

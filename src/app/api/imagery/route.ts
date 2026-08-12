@@ -11,13 +11,13 @@ import { NextResponse } from 'next/server';
  */
 
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+export const maxDuration = 60; // Vercel Hobby 상한. 클라이언트가 3장씩 끊어 보낸다
 
 const MODEL = process.env.OPENAI_IMAGE_MODEL ?? 'gpt-image-2';
 const QUALITY = process.env.OPENAI_IMAGE_QUALITY ?? 'low';
 /** 동시 생성 수 — 너무 올리면 rate limit 에 걸린다 */
-const CONCURRENCY = 4;
-const MAX_ITEMS = 24;
+const CONCURRENCY = 3;
+const MAX_ITEMS = 4;
 
 /** 지면 전체가 한 벌처럼 보이도록 모든 컷에 같은 아트디렉션을 건다 */
 const ART_DIRECTION = [
