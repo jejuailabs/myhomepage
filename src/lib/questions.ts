@@ -139,6 +139,86 @@ export const questionsOf = (section: QuestionSection) =>
 /** 답변 맵 — { food: '닭갈비', ... } */
 export type Answers = Record<string, string>;
 
+const TASTE_KEYS = QUESTIONS.filter((q) => q.section === 'taste').map((q) => q.key);
+const LOVE_KEYS = QUESTIONS.filter((q) => q.section === 'love').map((q) => q.key);
+const labelOf = (key: string) => QUESTIONS.find((q) => q.key === key)?.label ?? key;
+
+/**
+ * 답변 20개를 홈피 데이터로 옮긴다.
+ * 이미 있는 이미지는 그대로 두고 글자만 갈아끼운다.
+ */
+export function answersToProfile<
+  P extends {
+    tastes: { category?: string; label: string; imageUrl?: string }[];
+    loved: { imageUrl: string; label: string; category?: string }[];
+    strengths: { imageUrl: string; caption: string }[];
+    bucketList: { rank: number; label: string; imageUrl?: string }[];
+    dreamTravel: { imageUrl: string; label: string };
+    dreamLearn: { imageUrl: string; label: string };
+    childhoodDream?: string;
+  },
+>(answers: Answers, previous: P): Partial<P> {
+  const keep = <T extends { imageUrl?: string }>(list: T[], i: number) => list[i]?.imageUrl ?? '';
+
+  const tastes = TASTE_KEYS.filter((k) => answers[k]?.trim()).map((k, i) => ({
+    category: labelOf(k),
+    label: answers[k].trim(),
+    imageUrl: previous.tastes.find((t) => t.category === labelOf(k))?.imageUrl ?? keep(previous.tastes, i),
+  }));
+
+  const loved = LOVE_KEYS.filter((k) => answers[k]?.trim()).map((k, i) => ({
+    category: labelOf(k),
+    label: answers[k].trim(),
+    imageUrl: previous.loved.find((l) => l.category === labelOf(k))?.imageUrl ?? keep(previous.loved, i),
+  }));
+
+  const strengths = ['bestAt', 'praised']
+    .filter((k) => answers[k]?.trim())
+    .map((k, i) => ({ caption: answers[k].trim(), imageUrl: keep(previous.strengths, i) }));
+
+  const bucketList = (answers.bucket ?? '')
+    .split(/[,、·/|]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((label, i) => ({ rank: i + 1, label, imageUrl: keep(previous.bucketList, i) }));
+
+  return {
+    tastes,
+    loved,
+    strengths,
+    bucketList,
+    dreamTravel: { ...previous.dreamTravel, label: answers.travel ?? '' },
+    dreamLearn: { ...previous.dreamLearn, label: answers.learn ?? '' },
+    childhoodDream: answers.childhoodDream ?? '',
+  } as Partial<P>;
+}
+
+/** 저장돼 있던 홈피 데이터를 다시 20문항 답변으로 되돌린다 (편집 화면 진입용) */
+export function profileToAnswers(p: {
+  tastes: { category?: string; label: string }[];
+  loved: { category?: string; label: string }[];
+  strengths: { caption: string }[];
+  bucketList: { label: string }[];
+  dreamTravel: { label: string };
+  dreamLearn: { label: string };
+  childhoodDream?: string;
+}): Answers {
+  const a: Answers = {};
+  for (const t of [...p.tastes, ...p.loved]) {
+    const q = QUESTIONS.find((x) => x.label === t.category);
+    if (q && t.label) a[q.key] = t.label;
+  }
+  if (p.strengths[0]?.caption) a.bestAt = p.strengths[0].caption;
+  if (p.strengths[1]?.caption) a.praised = p.strengths[1].caption;
+  const bucket = p.bucketList.map((b) => b.label).filter(Boolean);
+  if (bucket.length) a.bucket = bucket.join(', ');
+  if (p.dreamTravel.label) a.travel = p.dreamTravel.label;
+  if (p.dreamLearn.label) a.learn = p.dreamLearn.label;
+  if (p.childhoodDream) a.childhoodDream = p.childhoodDream;
+  return a;
+}
+
 /** 붙여넣은 양식에서 20문항에 해당하는 답을 뽑아 맵으로 만든다 */
 export function answersFromText(text: string): Answers {
   const answers: Answers = {};

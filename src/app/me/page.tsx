@@ -1,21 +1,36 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { Card, FileButton, ImageField, TextField } from '@/components/editor/Fields';
 import GenerateImagery from '@/components/editor/GenerateImagery';
-import TemplateImport from '@/components/editor/TemplateImport';
 import ProfileView from '@/components/homepage/ProfileView';
 import ThemeToggle from '@/components/ThemeToggle';
 import { CONCEPT_LIST } from '@/lib/concepts';
+import {
+  answersFromText,
+  answersToProfile,
+  profileToAnswers,
+  QUESTIONS,
+  SECTION_TITLES,
+  type Answers,
+  type QuestionSection,
+} from '@/lib/questions';
 import { fetchProfile, saveProfile } from '@/lib/repo';
 import { emptyProfile, type ConceptId, type Profile } from '@/lib/types';
-import { uploadFile } from '@/lib/upload';
+import { uploadFile, uploadGenerated } from '@/lib/upload';
+
+/**
+ * 유저가 넣는 것은 셋뿐이다 — 셀카 1장, 질문 20개의 답, mp3 1개.
+ * 나머지 사진은 답변에서 만들어 붙이고, 레이아웃은 컨셉이 알아서 잡는다.
+ */
+
+const SECTION_ORDER: QuestionSection[] = ['taste', 'dream', 'strength', 'love'];
 
 export default function MyPage() {
   const { appUser, loading, signIn } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [answers, setAnswers] = useState<Answers>({});
   const [tab, setTab] = useState<'edit' | 'preview'>('edit');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -23,7 +38,11 @@ export default function MyPage() {
   useEffect(() => {
     if (!appUser) return;
     fetchProfile(appUser.uid)
-      .then((p) => setProfile(p ?? emptyProfile(appUser.uid)))
+      .then((p) => {
+        const loaded = p ?? emptyProfile(appUser.uid);
+        setProfile(loaded);
+        setAnswers(profileToAnswers(loaded));
+      })
       .catch(() => setProfile(emptyProfile(appUser.uid)));
   }, [appUser]);
 
@@ -32,25 +51,26 @@ export default function MyPage() {
     [],
   );
 
-  const pick = useCallback(
-    async (path: string, file: File, apply: (url: string) => void) => {
-      if (!appUser) return;
-      const url = await uploadFile(appUser.uid, path, file);
-      apply(url);
-    },
-    [appUser],
-  );
+  /** 답변이 바뀌면 곧바로 홈피 데이터에 반영한다 */
+  const setAnswer = useCallback((key: string, value: string) => {
+    setAnswers((prev) => {
+      const next = { ...prev, [key]: value };
+      setProfile((p) => (p ? { ...p, ...answersToProfile(next, p) } : p));
+      return next;
+    });
+  }, []);
+
+  const applyAll = useCallback((next: Answers) => {
+    setAnswers(next);
+    setProfile((p) => (p ? { ...p, ...answersToProfile(next, p) } : p));
+  }, []);
 
   const handleSave = async () => {
     if (!appUser || !profile) return;
     setSaving(true);
     try {
       await saveProfile(appUser.uid, profile);
-      setToast(
-        appUser.status === 'rejected'
-          ? '저장했습니다. 다만 관리자가 비공개 처리한 상태라 허브에는 보이지 않습니다.'
-          : '저장했습니다. 허브에 반영됩니다.',
-      );
+      setToast('저장했습니다. 허브에 반영됩니다.');
     } catch (e) {
       console.error(e);
       setToast('저장에 실패했습니다.');
@@ -60,9 +80,7 @@ export default function MyPage() {
     }
   };
 
-  if (loading) {
-    return <Centered>불러오는 중…</Centered>;
-  }
+  if (loading) return <Centered>불러오는 중…</Centered>;
 
   if (!appUser) {
     return (
@@ -81,6 +99,8 @@ export default function MyPage() {
 
   if (!profile) return <Centered>불러오는 중…</Centered>;
 
+  const answered = QUESTIONS.filter((q) => answers[q.key]?.trim()).length;
+
   return (
     <main className="mx-auto min-h-[100dvh] w-full max-w-frame pb-28">
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-hub-border bg-hub-bg/90 px-5 py-3 backdrop-blur">
@@ -97,7 +117,7 @@ export default function MyPage() {
                 tab === t ? 'bg-hub-text text-hub-bg' : 'text-hub-muted'
               }`}
             >
-              {t === 'edit' ? '편집' : '미리보기'}
+              {t === 'edit' ? '만들기' : '미리보기'}
             </button>
           ))}
         </div>
@@ -112,13 +132,48 @@ export default function MyPage() {
           preview
         />
       ) : (
-        <div className="space-y-4 px-5 py-5">
-          <TemplateImport profile={profile} onApply={patch} />
+        <div className="space-y-5 px-5 py-5">
+          <Step n={1} title="셀카 한 장" desc="올려주시면 화보 느낌의 프로필 사진으로 바꿔 드립니다.">
+            <SelfieStep uid={appUser.uid} profile={profile} onPatch={patch} />
+          </Step>
+
+          <Step
+            n={2}
+            title="나에 대한 질문 20개"
+            desc={`${answered}/${QUESTIONS.length}개 답하셨어요. 아는 것만 적으셔도 됩니다.`}
+          >
+            <PasteBox onExtract={(text) => applyAll({ ...answers, ...answersFromText(text) })} />
+            {SECTION_ORDER.map((section) => (
+              <div key={section} className="mt-5">
+                <p className="mb-2 text-[12px] font-bold text-hub-muted">
+                  {SECTION_TITLES[section].ko}
+                </p>
+                <div className="space-y-2">
+                  {QUESTIONS.filter((q) => q.section === section).map((q) => (
+                    <label key={q.key} className="block">
+                      <span className="mb-1 block text-[11px] text-hub-muted">{q.label}</span>
+                      <input
+                        value={answers[q.key] ?? ''}
+                        placeholder={q.placeholder}
+                        onChange={(e) => setAnswer(q.key, e.target.value)}
+                        className="w-full rounded-xl border border-hub-border bg-hub-surface px-3.5 py-2.5 text-[14px] outline-none placeholder:text-hub-muted/50 focus:border-hub-text"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </Step>
+
+          <Step n={3} title="음악 한 곡" desc="홈피에 들어오면 흘러나옵니다. 없어도 됩니다.">
+            <Mp3Step uid={appUser.uid} profile={profile} onPatch={patch} />
+          </Step>
+
           <GenerateImagery uid={appUser.uid} profile={profile} onPatch={patch} />
 
-          {/* 컨셉 선택 */}
-          <Card title="디자인 컨셉">
-            <div className="grid grid-cols-3 gap-2.5">
+          <details className="rounded-2xl border border-hub-border bg-hub-surface p-4">
+            <summary className="cursor-pointer text-[14px] font-bold">디자인 고르기</summary>
+            <div className="mt-3 grid grid-cols-3 gap-2.5">
               {CONCEPT_LIST.map((c) => (
                 <button
                   key={c.id}
@@ -128,303 +183,39 @@ export default function MyPage() {
                     profile.conceptId === c.id ? 'ring-hub-text' : 'ring-transparent'
                   }`}
                 >
-                  <span className="block h-16 w-full" style={{ background: c.swatch }} />
+                  <span className="block h-14 w-full" style={{ background: c.swatch }} />
                   <span className="block bg-hub-bg px-2 py-1.5 text-[11px] font-semibold leading-tight">
                     {c.nameKo}
                   </span>
                 </button>
               ))}
             </div>
-          </Card>
-
-          {/* 공개 범위 */}
-          <Card title="공개 범위">
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="mt-4 grid grid-cols-2 gap-2.5">
               {(
                 [
-                  { id: 'public', icon: '🌏', title: '공개', desc: '누구나 전체 내용을 봅니다' },
-                  {
-                    id: 'private',
-                    icon: '🔒',
-                    title: '비공개',
-                    desc: '사진만 보이고 글은 흐리게 가려집니다',
-                  },
+                  { id: 'public', title: '공개', desc: '누구나 볼 수 있어요' },
+                  { id: 'private', title: '비공개', desc: '사진만 보이고 글은 가려집니다' },
                 ] as const
               ).map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
                   onClick={() => patch({ visibility: opt.id })}
-                  className={`rounded-xl border p-3 text-left transition ${
-                    profile.visibility === opt.id
-                      ? 'border-hub-text bg-hub-bg'
-                      : 'border-hub-border'
+                  className={`rounded-xl border p-3 text-left ${
+                    profile.visibility === opt.id ? 'border-hub-text' : 'border-hub-border'
                   }`}
                 >
-                  <span className="text-[16px]">{opt.icon}</span>
-                  <span className="mt-1 block text-[13px] font-bold">{opt.title}</span>
+                  <span className="block text-[13px] font-bold">{opt.title}</span>
                   <span className="mt-0.5 block text-[11px] leading-tight text-hub-muted">
                     {opt.desc}
                   </span>
                 </button>
               ))}
             </div>
-          </Card>
-
-          {/* 허브 카드 */}
-          <Card title="허브 카드 (메인 화면 노출)">
-            <ImageField
-              label="대표 사진"
-              value={profile.heroImageUrl}
-              aspect="aspect-[3/4]"
-              onPick={(f) => pick('hero.jpg', f, (url) => patch({ heroImageUrl: url }))}
-            />
-            <TextField
-              label="한 줄 소개 (1~2문장)"
-              value={profile.heroSummary}
-              maxLength={90}
-              multiline
-              placeholder="예) 조천리에서 나고 자라 예순 해. 아직도 매일 새로운 걸 배웁니다."
-              onChange={(v) => patch({ heroSummary: v })}
-            />
-          </Card>
-
-          {/* 프로필 헤더 */}
-          <Card title="프로필">
-            <ImageField
-              label="프로필 사진"
-              value={profile.profileImageUrl}
-              onPick={(f) => pick('profile.jpg', f, (url) => patch({ profileImageUrl: url }))}
-            />
-            <TextField
-              label="슬로건"
-              value={profile.slogan}
-              maxLength={60}
-              placeholder="예) 나는 나의 속도로 아름답게 피어나고 있습니다"
-              onChange={(v) => patch({ slogan: v })}
-            />
-          </Card>
-
-          {/* 01 취향 */}
-          <Card title="01 나의 취향">
-            {profile.tastes.map((t, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  value={t.icon}
-                  onChange={(e) => {
-                    const next = [...profile.tastes];
-                    next[i] = { ...t, icon: e.target.value };
-                    patch({ tastes: next });
-                  }}
-                  className="w-14 rounded-xl border border-hub-border bg-hub-surface px-2 py-2.5 text-center text-[16px]"
-                  placeholder="🍲"
-                />
-                <input
-                  value={t.label}
-                  onChange={(e) => {
-                    const next = [...profile.tastes];
-                    next[i] = { ...t, label: e.target.value };
-                    patch({ tastes: next });
-                  }}
-                  className="flex-1 rounded-xl border border-hub-border bg-hub-surface px-3 py-2.5 text-[14px]"
-                  placeholder="좋아하는 것"
-                />
-                <button
-                  type="button"
-                  onClick={() => patch({ tastes: profile.tastes.filter((_, j) => j !== i) })}
-                  className="px-2 text-hub-muted"
-                  aria-label="삭제"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => patch({ tastes: [...profile.tastes, { icon: '', label: '' }] })}
-              className="w-full rounded-xl border border-dashed border-hub-border py-2.5 text-[13px] text-hub-muted"
-            >
-              + 취향 추가
-            </button>
-          </Card>
-
-          {/* 02 꿈과 도전 */}
-          <Card title="02 나의 꿈과 도전">
-            {profile.bucketList.map((b, i) => (
-              <TextField
-                key={b.rank}
-                label={`버킷리스트 ${b.rank}순위`}
-                value={b.label}
-                onChange={(v) => {
-                  const next = [...profile.bucketList];
-                  next[i] = { ...b, label: v };
-                  patch({ bucketList: next });
-                }}
-              />
-            ))}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <ImageField
-                  label="가고 싶은 여행지"
-                  value={profile.dreamTravel.imageUrl}
-                  aspect="aspect-square"
-                  onPick={(f) =>
-                    pick('sections/dream/travel.jpg', f, (url) =>
-                      patch({ dreamTravel: { ...profile.dreamTravel, imageUrl: url } }),
-                    )
-                  }
-                />
-                <input
-                  value={profile.dreamTravel.label}
-                  onChange={(e) =>
-                    patch({ dreamTravel: { ...profile.dreamTravel, label: e.target.value } })
-                  }
-                  placeholder="어디로 가고 싶나요?"
-                  className="w-full rounded-xl border border-hub-border bg-hub-surface px-3 py-2.5 text-[13px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <ImageField
-                  label="배워보고 싶은 것"
-                  value={profile.dreamLearn.imageUrl}
-                  aspect="aspect-square"
-                  onPick={(f) =>
-                    pick('sections/dream/learn.jpg', f, (url) =>
-                      patch({ dreamLearn: { ...profile.dreamLearn, imageUrl: url } }),
-                    )
-                  }
-                />
-                <input
-                  value={profile.dreamLearn.label}
-                  onChange={(e) =>
-                    patch({ dreamLearn: { ...profile.dreamLearn, label: e.target.value } })
-                  }
-                  placeholder="무엇을 배우고 싶나요?"
-                  className="w-full rounded-xl border border-hub-border bg-hub-surface px-3 py-2.5 text-[13px]"
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* 03 강점 */}
-          <Card title="03 나의 강점">
-            {[0, 1].map((i) => {
-              const s = profile.strengths[i] ?? { imageUrl: '', caption: '' };
-              const setS = (part: Partial<typeof s>) => {
-                const next = [...profile.strengths];
-                next[i] = { ...s, ...part };
-                patch({ strengths: next });
-              };
-              return (
-                <div key={i} className="space-y-2">
-                  <ImageField
-                    label={`강점 사진 ${i + 1}`}
-                    value={s.imageUrl}
-                    aspect="aspect-[16/10]"
-                    onPick={(f) =>
-                      pick(`sections/strengths/${i}.jpg`, f, (url) => setS({ imageUrl: url }))
-                    }
-                  />
-                  <input
-                    value={s.caption}
-                    onChange={(e) => setS({ caption: e.target.value })}
-                    placeholder="짧은 설명"
-                    className="w-full rounded-xl border border-hub-border bg-hub-surface px-3 py-2.5 text-[13px]"
-                  />
-                </div>
-              );
-            })}
-          </Card>
-
-          {/* 04 사랑하는 것 */}
-          <Card title="04 내가 사랑하는 것">
-            <div className="grid grid-cols-2 gap-3">
-              {[0, 1, 2, 3].map((i) => {
-                const l = profile.loved[i] ?? { imageUrl: '', label: '' };
-                const setL = (part: Partial<typeof l>) => {
-                  const next = [...profile.loved];
-                  next[i] = { ...l, ...part };
-                  patch({ loved: next });
-                };
-                return (
-                  <div key={i} className="space-y-2">
-                    <ImageField
-                      label={`사진 ${i + 1}`}
-                      value={l.imageUrl}
-                      aspect="aspect-square"
-                      onPick={(f) =>
-                        pick(`sections/loved/${i}.jpg`, f, (url) => setL({ imageUrl: url }))
-                      }
-                    />
-                    <input
-                      value={l.label}
-                      onChange={(e) => setL({ label: e.target.value })}
-                      placeholder="라벨"
-                      className="w-full rounded-xl border border-hub-border bg-hub-surface px-3 py-2 text-[13px]"
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-
-          {/* 05 행복한 순간 */}
-          <Card title="05 나를 행복하게 하는 순간">
-            <div className="grid grid-cols-2 gap-3">
-              {[0, 1, 2, 3].map((i) => (
-                <ImageField
-                  key={i}
-                  label={`사진 ${i + 1}`}
-                  value={profile.happyMoments[i]?.imageUrl ?? ''}
-                  aspect="aspect-square"
-                  onPick={(f) =>
-                    pick(`sections/happy/${i}.jpg`, f, (url) => {
-                      const next = [...profile.happyMoments];
-                      next[i] = { imageUrl: url };
-                      patch({ happyMoments: next });
-                    })
-                  }
-                />
-              ))}
-            </div>
-          </Card>
-
-          {/* 음악 */}
-          <Card title="배경 음악 (mp3)">
-            <FileButton
-              label={profile.mp3Url ? '음악 교체하기' : 'mp3 올리기'}
-              hint="15MB 이하. 홈피 진입 시 자동재생을 시도합니다."
-              accept="audio/mpeg,audio/mp3"
-              onPick={(f) => pick('audio.mp3', f, (url) => patch({ mp3Url: url }))}
-            />
-            <label className="flex items-center gap-2 text-[13px]">
-              <input
-                type="checkbox"
-                checked={profile.mp3Autoplay}
-                onChange={(e) => patch({ mp3Autoplay: e.target.checked })}
-              />
-              진입 시 자동재생 시도
-            </label>
-          </Card>
-
-          {/* 클로징 */}
-          <Card title="마무리 문구">
-            <TextField
-              label="클로징 문구"
-              value={profile.closingText}
-              placeholder="예) 오늘의 나를 응원해요"
-              onChange={(v) => patch({ closingText: v })}
-            />
-            <TextField
-              label="서브 태그라인"
-              value={profile.subTagline}
-              onChange={(v) => patch({ subTagline: v })}
-            />
-          </Card>
+          </details>
         </div>
       )}
 
-      {/* 저장 바 */}
       <div className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-frame border-t border-hub-border bg-hub-bg/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         {toast && <p className="mb-2 text-center text-[12px] text-hub-muted">{toast}</p>}
         <button
@@ -437,6 +228,214 @@ export default function MyPage() {
         </button>
       </div>
     </main>
+  );
+}
+
+/* ── 1단계: 셀카 ── */
+
+function SelfieStep({
+  uid,
+  profile,
+  onPatch,
+}: {
+  uid: string;
+  profile: Profile;
+  onPatch: (p: Partial<Profile>) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState<'upload' | 'generate' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const shot = profile.profileImageUrl || profile.heroImageUrl;
+
+  const handle = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    setBusy('upload');
+    try {
+      // 원본을 먼저 올려 두고(생성 실패해도 사진은 남는다), 이어서 변환한다
+      const raw = await uploadFile(uid, 'selfie.jpg', file);
+      onPatch({ profileImageUrl: raw, heroImageUrl: raw });
+
+      setBusy('generate');
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/portrait', { method: 'POST', body: form });
+      const data = (await res.json()) as { dataUrl?: string; error?: string };
+      if (!res.ok || !data.dataUrl) {
+        throw new Error(data.error ?? '사진을 만들지 못했습니다.');
+      }
+      const url = await uploadGenerated(uid, 'portrait.jpg', data.dataUrl);
+      onPatch({ profileImageUrl: url, heroImageUrl: url });
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? `${e.message} 올려주신 사진은 그대로 쓰입니다.`
+          : '사진을 만들지 못했습니다.',
+      );
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={busy !== null}
+        className="relative aspect-[3/4] w-full overflow-hidden rounded-xl border border-dashed border-hub-border bg-hub-bg"
+      >
+        {shot ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={shot} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="absolute inset-0 grid place-items-center text-[13px] text-hub-muted">
+            셀카 올리기
+          </span>
+        )}
+        {busy && (
+          <span className="absolute inset-0 grid place-items-center bg-black/50 px-6 text-center text-[13px] leading-relaxed text-white">
+            {busy === 'upload' ? '사진 올리는 중…' : '화보 사진으로 바꾸는 중…\n20초쯤 걸려요'}
+          </span>
+        )}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          void handle(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+      {error && <p className="mt-2 text-[12px] leading-snug text-red-500">{error}</p>}
+    </div>
+  );
+}
+
+/* ── 2단계: 양식 붙여넣기 ── */
+
+function PasteBox({ onExtract }: { onExtract: (text: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+
+  return (
+    <div className="rounded-xl border border-hub-border bg-hub-bg p-3">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between text-left text-[12px]"
+      >
+        <span className="font-semibold">쓰시던 양식을 붙여넣어 한번에 채우기</span>
+        <span className="text-hub-muted">{open ? '닫기' : '열기'}</span>
+      </button>
+      {open && (
+        <div className="mt-2.5 space-y-2">
+          <textarea
+            rows={5}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={'좋아하는 음식: 닭갈비\n좋아하는 색깔: 노란색'}
+            className="w-full resize-none rounded-lg border border-hub-border bg-hub-surface px-3 py-2.5 text-[13px] outline-none focus:border-hub-text"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              onExtract(text);
+              setOpen(false);
+            }}
+            disabled={!text.trim()}
+            className="w-full rounded-lg bg-hub-text py-2.5 text-[13px] font-bold text-hub-bg disabled:opacity-40"
+          >
+            아래 칸에 채우기
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── 3단계: mp3 ── */
+
+function Mp3Step({
+  uid,
+  profile,
+  onPatch,
+}: {
+  uid: string;
+  profile: Profile;
+  onPatch: (p: Partial<Profile>) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={busy}
+        className="w-full rounded-xl border border-hub-border bg-hub-bg px-4 py-3.5 text-[14px] font-semibold"
+      >
+        {busy ? '올리는 중…' : profile.mp3Url ? '음악 바꾸기' : 'mp3 올리기'}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="audio/mpeg,audio/mp3"
+        hidden
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (!file) return;
+          setBusy(true);
+          setError(null);
+          try {
+            const url = await uploadFile(uid, 'audio.mp3', file);
+            onPatch({ mp3Url: url });
+          } catch (err) {
+            setError(err instanceof Error ? err.message : '올리지 못했습니다.');
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+      {profile.mp3Url && !error && (
+        <p className="mt-1.5 text-[12px] text-hub-muted">음악이 등록되어 있습니다.</p>
+      )}
+      {error && <p className="mt-1.5 text-[12px] text-red-500">{error}</p>}
+    </div>
+  );
+}
+
+/* ── 공통 ── */
+
+function Step({
+  n,
+  title,
+  desc,
+  children,
+}: {
+  n: number;
+  title: string;
+  desc: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-hub-border bg-hub-surface p-4">
+      <div className="mb-3 flex items-baseline gap-2.5">
+        <span className="font-serif text-[20px] leading-none text-hub-muted">
+          {String(n).padStart(2, '0')}
+        </span>
+        <div>
+          <h2 className="text-[15px] font-bold leading-tight">{title}</h2>
+          <p className="mt-0.5 text-[12px] leading-snug text-hub-muted">{desc}</p>
+        </div>
+      </div>
+      {children}
+    </section>
   );
 }
 
