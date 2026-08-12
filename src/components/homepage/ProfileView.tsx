@@ -37,23 +37,27 @@ export default function ProfileView({
   const photo = profile.profileImageUrl || profile.heroImageUrl;
 
   return (
-    <div className="relative mx-auto h-[100dvh] w-full max-w-frame overflow-hidden bg-black">
+    <div className="relative mx-auto min-h-[100dvh] w-full max-w-frame bg-black">
       {photo ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={photo}
-          alt={displayName}
-          className="h-full w-full object-cover"
-          draggable={false}
-        />
+        // 올리는 이미지마다 비율이 다르다. 잘라내지 않고 폭에 맞춰 전부 보여주고,
+        // 세로로 긴 지면은 스크롤해서 끝까지 읽을 수 있게 한다.
+        <div className="flex min-h-[100dvh] items-center justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photo}
+            alt={displayName}
+            className="block h-auto w-full"
+            draggable={false}
+          />
+        </div>
       ) : (
-        <div className="grid h-full w-full place-items-center px-8 text-center text-[14px] text-white/70">
+        <div className="grid min-h-[100dvh] w-full place-items-center px-8 text-center text-[14px] text-white/70">
           아직 사진이 없습니다.
         </div>
       )}
 
       {!preview && (
-        <div className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pt-4">
+        <div className="fixed inset-x-0 top-0 z-30 mx-auto flex w-full max-w-frame items-center justify-between px-4 pt-4">
           <Link
             href="/"
             className="rounded-full bg-black/40 px-3.5 py-2 text-[12px] font-semibold text-white backdrop-blur"

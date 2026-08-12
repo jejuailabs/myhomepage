@@ -10,10 +10,16 @@ import { NextResponse } from 'next/server';
  */
 
 export const runtime = 'nodejs';
-export const maxDuration = 120;
+export const maxDuration = 60; // Vercel Hobby 상한
 
 const MODEL = process.env.OPENAI_IMAGE_MODEL ?? 'gpt-image-2';
-const QUALITY = process.env.OPENAI_IMAGE_QUALITY ?? 'low';
+/**
+ * 이 사진은 허브 카드에 크게 걸리는 유일한 사진이라 화질이 곧 첫인상이다.
+ * low 는 눈에 띄게 뭉개져서 medium 으로 올렸다.
+ * high 는 실측 121초가 걸려 Vercel 함수 실행 한도(60초)를 넘기므로 쓸 수 없다.
+ * medium 은 실측 50초. 입력 이미지를 미리 줄여 보내 여유를 둔다.
+ */
+const QUALITY = process.env.OPENAI_PORTRAIT_QUALITY ?? 'medium';
 const SIZE = process.env.OPENAI_IMAGE_SIZE ?? '1024x1536';
 const MAX_BYTES = 8 * 1024 * 1024;
 

@@ -45,8 +45,10 @@ export const sectionImagePath = (sectionId: string, imageId: string) =>
  */
 export async function compressDataUrl(
   dataUrl: string,
-  maxSide = 720,
-  quality = 0.82,
+  // 허브 카드는 고해상도 화면에서 폭 900px 가까이 차지한다.
+  // 720px 로 줄였더니 눈에 띄게 뭉개졌다.
+  maxSide = 1536,
+  quality = 0.92,
 ): Promise<Blob> {
   const img = document.createElement('img');
   img.decoding = 'async';
@@ -81,4 +83,28 @@ export async function uploadGenerated(
   const blob = await compressDataUrl(dataUrl);
   const file = new File([blob], path.split('/').pop() ?? 'image.jpg', { type: 'image/jpeg' });
   return uploadFile(uid, path, file);
+}
+
+/**
+ * 서버로 보내기 전에 입력 이미지를 줄인다.
+ *
+ * 원본이 클수록 생성 요청이 오래 걸리는데, Vercel 함수 실행 한도가 60초라
+ * 여유를 벌어야 한다. 인물을 알아보고 글자를 읽는 데는 이 정도면 충분하다.
+ */
+export async function shrinkForApi(file: File, maxSide = 1024): Promise<File> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('파일을 읽지 못했습니다.'));
+    reader.readAsDataURL(file);
+  });
+
+  try {
+    const blob = await compressDataUrl(dataUrl, maxSide, 0.9);
+    // 줄인 결과가 더 크면 원본을 그대로 쓴다
+    if (blob.size >= file.size) return file;
+    return new File([blob], 'input.jpg', { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
 }

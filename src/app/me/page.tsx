@@ -8,7 +8,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { applyBasics, basicAnswers, BASIC_FIELDS } from '@/lib/basics';
 import { fetchProfile, saveProfile } from '@/lib/repo';
 import { emptyProfile, type Profile } from '@/lib/types';
-import { uploadFile, uploadGenerated } from '@/lib/upload';
+import { shrinkForApi, uploadFile, uploadGenerated } from '@/lib/upload';
 
 /**
  * 넣는 것은 둘뿐이다 — 사진 한 장, 음악 한 곡.
@@ -231,11 +231,14 @@ function PhotoStep({
       return;
     }
 
+    // API 로 보낼 축소본을 한 번만 만들어 두 요청에 함께 쓴다
+    const small = await shrinkForApi(file);
+
     // 이미지에 적힌 항목 읽기 — 실패해도 사진은 이미 올라가 있다
     setBusy('extract');
     try {
       const form = new FormData();
-      form.append('file', file);
+      form.append('file', small);
       const res = await fetch('/api/extract', { method: 'POST', body: form });
       const data = (await res.json()) as {
         fields?: Record<string, string>;
@@ -252,7 +255,7 @@ function PhotoStep({
     setBusy('portrait');
     try {
       const form = new FormData();
-      form.append('file', file);
+      form.append('file', small);
       const res = await fetch('/api/portrait', { method: 'POST', body: form });
       const data = (await res.json()) as { dataUrl?: string; error?: string };
       if (!res.ok || !data.dataUrl) throw new Error(data.error ?? '인물 사진을 만들지 못했습니다.');
