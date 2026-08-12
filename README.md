@@ -82,11 +82,16 @@ Firebase 없이도 6명의 샘플 데이터로 전체 화면(허브 / 개별 홈
 > `The database (default) does not exist` 가 나오면 콘솔에서 Firestore Database 를 만들어야 합니다.
 > Web SDK 는 이 상황에서 오류 대신 무한 재시도를 하므로, 앱은 12초 후 안내 문구를 띄웁니다.
 4. `.env.local.example` 을 복사해 `.env.local` 작성, `NEXT_PUBLIC_USE_MOCK` 은 `false` 또는 삭제
-5. 규칙 배포:
+5. 규칙 배포 — `serviceAccount.json` 만 있으면 명령 한 줄로 끝납니다:
 
 ```bash
-npx firebase deploy --only firestore:rules,storage
+npm run deploy:rules
 ```
+
+> firebase CLI(`npx firebase deploy`)는 배포 전에 serviceusage API 로 "API 활성화 확인"을 하는데,
+> Firebase Admin SDK 서비스 계정에는 그 권한이 없어 403 이 납니다.
+> 그래서 [scripts/deploy-rules.mjs](scripts/deploy-rules.mjs) 가 Firebase Rules API 를 직접 호출합니다.
+> Storage 규칙은 **콘솔에서 Storage 를 먼저 활성화**해야 배포됩니다(버킷이 없으면 배포 대상이 없음).
 
 ## 서비스 계정 키 (운영 스크립트용)
 
