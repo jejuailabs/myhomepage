@@ -139,30 +139,42 @@ export default function MyPage() {
 
           <Step
             n={2}
-            title="나에 대한 질문 20개"
-            desc={`${answered}/${QUESTIONS.length}개 답하셨어요. 아는 것만 적으셔도 됩니다.`}
+            title="답변 붙여넣기"
+            desc="쓰시던 질문지를 통째로 붙여넣으세요. 항목은 알아서 나눠 담습니다."
           >
-            <PasteBox onExtract={(text) => applyAll({ ...answers, ...answersFromText(text) })} />
-            {SECTION_ORDER.map((section) => (
-              <div key={section} className="mt-5">
-                <p className="mb-2 text-[12px] font-bold text-hub-muted">
-                  {SECTION_TITLES[section].ko}
-                </p>
-                <div className="space-y-2">
-                  {QUESTIONS.filter((q) => q.section === section).map((q) => (
-                    <label key={q.key} className="block">
-                      <span className="mb-1 block text-[11px] text-hub-muted">{q.label}</span>
-                      <input
-                        value={answers[q.key] ?? ''}
-                        placeholder={q.placeholder}
-                        onChange={(e) => setAnswer(q.key, e.target.value)}
-                        className="w-full rounded-xl border border-hub-border bg-hub-surface px-3.5 py-2.5 text-[14px] outline-none placeholder:text-hub-muted/50 focus:border-hub-text"
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
+            <PasteBox
+              answered={answered}
+              total={QUESTIONS.length}
+              onExtract={(text) => applyAll({ ...answers, ...answersFromText(text) })}
+            />
+
+            {answered > 0 && (
+              <details className="mt-3">
+                <summary className="cursor-pointer text-[12px] font-semibold text-hub-muted">
+                  하나씩 고치기 ({answered}/{QUESTIONS.length})
+                </summary>
+                {SECTION_ORDER.map((section) => (
+                  <div key={section} className="mt-4">
+                    <p className="mb-2 text-[12px] font-bold text-hub-muted">
+                      {SECTION_TITLES[section].ko}
+                    </p>
+                    <div className="space-y-2">
+                      {QUESTIONS.filter((q) => q.section === section).map((q) => (
+                        <label key={q.key} className="block">
+                          <span className="mb-1 block text-[11px] text-hub-muted">{q.label}</span>
+                          <input
+                            value={answers[q.key] ?? ''}
+                            placeholder={`예: ${q.placeholder}`}
+                            onChange={(e) => setAnswer(q.key, e.target.value)}
+                            className="w-full rounded-xl border border-hub-border bg-hub-surface px-3.5 py-2.5 text-[14px] outline-none placeholder:text-hub-muted/40 focus:border-hub-text"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </details>
+            )}
           </Step>
 
           <Step n={3} title="음악 한 곡" desc="홈피에 들어오면 흘러나옵니다. 없어도 됩니다.">
@@ -316,41 +328,55 @@ function SelfieStep({
 
 /* ── 2단계: 양식 붙여넣기 ── */
 
-function PasteBox({ onExtract }: { onExtract: (text: string) => void }) {
-  const [open, setOpen] = useState(false);
+function PasteBox({
+  answered,
+  total,
+  onExtract,
+}: {
+  answered: number;
+  total: number;
+  onExtract: (text: string) => void;
+}) {
   const [text, setText] = useState('');
+  const [done, setDone] = useState(false);
 
   return (
-    <div className="rounded-xl border border-hub-border bg-hub-bg p-3">
+    <div>
+      <textarea
+        rows={7}
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setDone(false);
+        }}
+        placeholder={
+          '질문지를 그대로 붙여넣으세요.\n\n좋아하는 음식: …\n좋아하는 색깔: …\n버킷리스트 TOP 3: …'
+        }
+        className="w-full resize-none rounded-xl border border-hub-border bg-hub-bg px-3.5 py-3 text-[13px] leading-relaxed outline-none placeholder:text-hub-muted/40 focus:border-hub-text"
+      />
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between text-left text-[12px]"
+        onClick={() => {
+          onExtract(text);
+          setDone(true);
+        }}
+        disabled={!text.trim()}
+        className="mt-2 w-full rounded-xl bg-hub-text py-3.5 text-[15px] font-bold text-hub-bg disabled:opacity-40"
       >
-        <span className="font-semibold">쓰시던 양식을 붙여넣어 한번에 채우기</span>
-        <span className="text-hub-muted">{open ? '닫기' : '열기'}</span>
+        붙여넣은 내용으로 채우기
       </button>
-      {open && (
-        <div className="mt-2.5 space-y-2">
-          <textarea
-            rows={5}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={'좋아하는 음식: 닭갈비\n좋아하는 색깔: 노란색'}
-            className="w-full resize-none rounded-lg border border-hub-border bg-hub-surface px-3 py-2.5 text-[13px] outline-none focus:border-hub-text"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              onExtract(text);
-              setOpen(false);
-            }}
-            disabled={!text.trim()}
-            className="w-full rounded-lg bg-hub-text py-2.5 text-[13px] font-bold text-hub-bg disabled:opacity-40"
-          >
-            아래 칸에 채우기
-          </button>
-        </div>
+
+      {done && (
+        <p className="mt-2 text-center text-[12px] font-semibold text-hub-muted">
+          {answered > 0
+            ? `${answered}개 항목을 읽었습니다.`
+            : '인식된 항목이 없습니다. "항목: 내용" 형태인지 확인해 주세요.'}
+        </p>
+      )}
+      {!done && answered > 0 && (
+        <p className="mt-2 text-center text-[12px] text-hub-muted">
+          {answered}/{total}개 채워져 있습니다.
+        </p>
       )}
     </div>
   );

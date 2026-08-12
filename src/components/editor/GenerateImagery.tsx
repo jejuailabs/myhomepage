@@ -101,6 +101,12 @@ export default function GenerateImagery({
   const [error, setError] = useState<string | null>(null);
 
   const pending = buildSlots(profile);
+  /** 답변 자체가 없는 상태와, 답변은 있는데 사진이 다 있는 상태를 구분한다 */
+  const hasAnswers =
+    profile.tastes.some((t) => t.label) ||
+    profile.loved.some((l) => l.label) ||
+    profile.strengths.some((s) => s.caption) ||
+    Boolean(profile.dreamTravel.label);
 
   const run = async () => {
     const slots = buildSlots(profile);
@@ -173,9 +179,11 @@ export default function GenerateImagery({
       >
         {running
           ? `만드는 중… ${done}/${total}`
-          : pending.length === 0
-            ? '모든 항목에 사진이 있습니다'
-            : `${pending.length}장 만들기`}
+          : !hasAnswers
+            ? '먼저 위에서 답변을 채워주세요'
+            : pending.length === 0
+              ? '모든 항목에 사진이 있습니다'
+              : `${pending.length}장 만들기`}
       </button>
 
       {running && (
