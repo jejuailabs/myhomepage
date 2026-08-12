@@ -13,6 +13,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
+import { basicsOf } from './basics';
 import { getDb, useMock } from './firebase';
 import { mockBySlug, mockHeroCards, MOCK_ENTRIES } from './mockData';
 import type { AppUser, HeroCard, Profile, UserStatus } from './types';
@@ -81,6 +82,7 @@ async function loadHeroCards(): Promise<HeroCard[]> {
         conceptId: p.conceptId,
         order: u.order ?? 0,
         visibility: p.visibility ?? 'public',
+        basics: basicsOf(p.tastes),
       } satisfies HeroCard;
     })
     .filter((c): c is HeroCard => c !== null)

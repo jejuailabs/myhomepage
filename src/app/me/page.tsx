@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import ProfileView from '@/components/homepage/ProfileView';
 import ThemeToggle from '@/components/ThemeToggle';
+import { applyBasics, basicAnswers, BASIC_FIELDS } from '@/lib/basics';
 import { fetchProfile, saveProfile } from '@/lib/repo';
 import { emptyProfile, type Profile } from '@/lib/types';
 import { uploadFile } from '@/lib/upload';
@@ -104,6 +105,8 @@ export default function MyPage() {
           <PhotoStep uid={appUser.uid} profile={profile} onPatch={patch} />
           <Mp3Step uid={appUser.uid} profile={profile} onPatch={patch} />
           <SummaryStep profile={profile} onPatch={patch} />
+          <BasicsStep profile={profile} onPatch={patch} />
+          <VisibilityStep profile={profile} onPatch={patch} />
         </div>
       )}
 
@@ -254,6 +257,76 @@ function SummaryStep({
         onChange={(e) => onPatch({ heroSummary: e.target.value })}
         className="w-full resize-none rounded-xl border border-hub-border bg-hub-bg px-3.5 py-3 text-[14px] outline-none placeholder:text-hub-muted/40 focus:border-hub-text"
       />
+    </Step>
+  );
+}
+
+/** 허브 카드에 얹히는 기본 항목 — 비공개여도 노출된다 */
+function BasicsStep({
+  profile,
+  onPatch,
+}: {
+  profile: Profile;
+  onPatch: (p: Partial<Profile>) => void;
+}) {
+  const answers = basicAnswers(profile.tastes);
+
+  return (
+    <Step
+      n={4}
+      title="기본 항목"
+      desc="메인 화면 사진 위에 함께 보입니다. 비공개로 두어도 이 항목은 보입니다."
+    >
+      <div className="space-y-2">
+        {BASIC_FIELDS.map((f) => (
+          <label key={f.key} className="block">
+            <span className="mb-1 block text-[11px] text-hub-muted">{f.label}</span>
+            <input
+              value={answers[f.key] ?? ''}
+              placeholder={`예: ${f.placeholder}`}
+              onChange={(e) =>
+                onPatch({ tastes: applyBasics(profile, { ...answers, [f.key]: e.target.value }) })
+              }
+              className="w-full rounded-xl border border-hub-border bg-hub-bg px-3.5 py-2.5 text-[14px] outline-none placeholder:text-hub-muted/40 focus:border-hub-text"
+            />
+          </label>
+        ))}
+      </div>
+    </Step>
+  );
+}
+
+function VisibilityStep({
+  profile,
+  onPatch,
+}: {
+  profile: Profile;
+  onPatch: (p: Partial<Profile>) => void;
+}) {
+  return (
+    <Step n={5} title="공개 여부" desc="비공개로 두어도 메인 화면에는 사진과 기본 항목이 보입니다.">
+      <div className="grid grid-cols-2 gap-2.5">
+        {(
+          [
+            { id: 'public', title: '공개', desc: '한 줄 소개까지 모두 보입니다' },
+            { id: 'private', title: '비공개', desc: '한 줄 소개는 흐리게 가려집니다' },
+          ] as const
+        ).map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onPatch({ visibility: opt.id })}
+            className={`rounded-xl border p-3 text-left transition ${
+              profile.visibility === opt.id ? 'border-hub-text bg-hub-bg' : 'border-hub-border'
+            }`}
+          >
+            <span className="block text-[13px] font-bold">{opt.title}</span>
+            <span className="mt-0.5 block text-[11px] leading-tight text-hub-muted">
+              {opt.desc}
+            </span>
+          </button>
+        ))}
+      </div>
     </Step>
   );
 }

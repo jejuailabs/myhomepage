@@ -77,40 +77,56 @@ export default function HeroCarousel({ cards }: { cards: HeroCard[] }) {
             <button
               type="button"
               onClick={() => open(card)}
-              className="group relative flex h-full w-full flex-col overflow-hidden rounded-[28px] bg-hub-surface text-left shadow-[0_10px_40px_rgba(0,0,0,0.14)] ring-1 ring-hub-border transition-transform active:scale-[0.985]"
+              className="group relative block h-full w-full overflow-hidden rounded-[28px] bg-hub-border text-left shadow-[0_10px_40px_rgba(0,0,0,0.18)] transition-transform active:scale-[0.985]"
             >
-              {/* 이미지 영역: 카드의 80% */}
-              <div className="relative h-[80%] w-full overflow-hidden bg-hub-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={card.heroImageUrl}
-                  alt={`${card.displayName} 대표 사진`}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/45 to-transparent" />
-                <span className="absolute bottom-4 left-5 text-[26px] font-bold tracking-tight text-white drop-shadow">
-                  {card.displayName}
-                </span>
-                {card.visibility === 'private' && (
-                  <span className="absolute right-4 top-4 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
-                    🔒 비공개
-                  </span>
-                )}
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={card.heroImageUrl}
+                alt={`${card.displayName} 대표 사진`}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
 
-              {/* 요약 영역 — 비공개 홈피는 사진만 두고 글은 가린다 */}
-              <div className="flex h-[20%] items-center px-5">
-                <p
-                  className={`line-clamp-3 text-[14px] leading-relaxed text-hub-muted ${
-                    card.visibility === 'private' ? 'select-none blur-[5px]' : ''
-                  }`}
-                  aria-hidden={card.visibility === 'private'}
-                >
-                  {card.heroSummary}
-                </p>
-                {card.visibility === 'private' && (
-                  <span className="sr-only">비공개 홈피입니다</span>
+              {/* 사진 위에 얹는 글 */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 top-1/3 bg-gradient-to-t from-black/85 via-black/45 to-transparent" />
+
+              {card.visibility === 'private' && (
+                <span className="absolute right-4 top-4 rounded-full border border-white/30 bg-black/30 px-2.5 py-1 text-[10px] font-semibold tracking-[0.14em] text-white/90 backdrop-blur">
+                  비공개
+                </span>
+              )}
+
+              <div className="absolute inset-x-0 bottom-0 px-6 pb-7">
+                <h2 className="font-serif text-[30px] leading-none tracking-tight text-white">
+                  {card.displayName}
+                </h2>
+
+                {/* 한 줄 소개 — 비공개면 가린다 */}
+                {card.heroSummary && (
+                  <p
+                    className={`mt-2.5 line-clamp-2 text-[13px] leading-relaxed text-white/80 ${
+                      card.visibility === 'private' ? 'select-none blur-[5px]' : ''
+                    }`}
+                    aria-hidden={card.visibility === 'private'}
+                  >
+                    {card.heroSummary}
+                  </p>
+                )}
+
+                {/* 기본 항목 — 비공개여도 그대로 보여준다 */}
+                {card.basics.length > 0 && (
+                  <dl className="mt-4 border-t border-white/25 pt-3.5">
+                    <div className="flex flex-wrap gap-x-6 gap-y-2">
+                      {card.basics.map((b) => (
+                        <div key={b.label}>
+                          <dt className="text-[9px] tracking-[0.22em] text-white/50">
+                            {b.label.replace(/^좋아하는\s*/, '').toUpperCase()}
+                          </dt>
+                          <dd className="mt-0.5 font-serif text-[15px] text-white">{b.value}</dd>
+                        </div>
+                      ))}
+                    </div>
+                  </dl>
                 )}
               </div>
             </button>

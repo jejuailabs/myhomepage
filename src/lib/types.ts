@@ -99,6 +99,8 @@ export interface HeroCard {
   conceptId: ConceptId;
   order: number;
   visibility: Visibility;
+  /** 허브 카드에 얹는 기본 항목 (비공개여도 노출) */
+  basics: { label: string; value: string }[];
 }
 
 /** Firestore: settings/hub */

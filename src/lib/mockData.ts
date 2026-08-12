@@ -1,3 +1,4 @@
+import { basicsOf } from './basics';
 import type { AppUser, HeroCard, Profile } from './types';
 
 const img = (id: string, w = 900) =>
@@ -39,12 +40,10 @@ const make = (
     mp3Url: '',
     mp3Autoplay: true,
     tastes: [
-      { icon: '🍲', label: '몸국' },
-      { icon: '🎬', label: '리틀 포레스트' },
-      { icon: '📖', label: '아침의 피아노' },
-      { icon: '🌿', label: '텃밭 가꾸기' },
-      { icon: '🧭', label: 'ISFJ' },
-      { icon: '☕', label: '한라봉차' },
+      { category: 'MBTI · 혈액형', label: 'ISFJ / A형' },
+      { category: '좋아하는 계절', label: '봄' },
+      { category: '좋아하는 색깔', label: '연둣빛' },
+      { category: '좋아하는 음식', label: '몸국' },
     ],
     bucketList: [
       { rank: 1, label: '한라산 백록담까지 걸어 오르기' },
@@ -142,6 +141,7 @@ export const mockHeroCards = (): HeroCard[] =>
     conceptId: profile.conceptId,
     order: user.order,
     visibility: profile.visibility,
+    basics: basicsOf(profile.tastes),
   })).sort((a, b) => a.order - b.order);
 
 export const mockBySlug = (slug: string): MockEntry | null =>
