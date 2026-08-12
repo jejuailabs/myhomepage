@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import HeroCarousel from '@/components/HeroCarousel';
@@ -14,33 +13,23 @@ export default function HubPage() {
   const [cards, setCards] = useState<HeroCard[] | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
   const redirectChecked = useRef(false);
+  const [needsSetup, setNeedsSetup] = useState(false);
 
   /**
-   * 로그인했는데 아직 홈피를 안 만든 사람은 한 번만 빌더로 보낸다.
+   * 홈피가 비어 있는지만 확인해 안내 버튼을 띄운다.
    *
-   * 예전에는 조건만 맞으면 매번 보냈는데, 사진을 올리고 저장하지 않은 채
-   * 허브로 나오면 계속 빌더로 되돌려보내 빠져나갈 수 없었다.
-   * 브라우저 세션당 한 번으로 제한해 갇히지 않게 한다.
-   * (Firestore 조회가 실패한 경우에는 보내지 않는다 — 빈 것과 못 읽은 것은 다르다)
+   * 예전에는 여기서 빌더로 자동 이동시켰는데, 저장 전에는 Firestore 가 비어 있어
+   * 허브로 나올 때마다 빌더로 되돌아가 빠져나갈 수 없었다.
+   * 이동은 사용자가 직접 누를 때만 한다.
    */
   useEffect(() => {
     if (!appUser || redirectChecked.current) return;
     redirectChecked.current = true;
-
-    const KEY = 'heroes-builder-sent';
-    if (sessionStorage.getItem(KEY) === '1') return;
-
     fetchProfile(appUser.uid)
-      .then((profile) => {
-        if (isProfileEmpty(profile)) {
-          sessionStorage.setItem(KEY, '1');
-          router.replace('/me');
-        }
-      })
+      .then((profile) => setNeedsSetup(isProfileEmpty(profile)))
       .catch((e) => console.error('프로필 확인 실패', e));
-  }, [appUser, router]);
+  }, [appUser]);
 
   useEffect(() => {
     fetchHeroCards()
@@ -79,10 +68,9 @@ export default function HubPage() {
           {signedIn && (
             <Link
               href="/me"
-              className="grid h-8 w-8 place-items-center rounded-full border border-hub-border bg-hub-surface text-[13px]"
-              aria-label="내 홈피 관리"
+              className="rounded-full border border-hub-border bg-hub-surface px-3 py-1.5 text-[12px] font-semibold"
             >
-              👤
+              내 홈피
             </Link>
           )}
         </div>
@@ -114,6 +102,14 @@ export default function HubPage() {
 
       {/* 하단 바: 로그인 전에만 로그인 버튼 노출 */}
       <div className="px-5 pb-[max(20px,env(safe-area-inset-bottom))]">
+        {signedIn && needsSetup && (
+          <Link
+            href="/me"
+            className="mb-3 block w-full rounded-2xl bg-hub-text py-3.5 text-center text-[15px] font-bold text-hub-bg"
+          >
+            내 홈피 만들기
+          </Link>
+        )}
         {loading ? null : signedIn ? (
           <div className="flex items-center justify-between text-xs text-hub-muted">
             <span>
