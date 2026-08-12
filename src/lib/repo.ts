@@ -2,6 +2,7 @@
 
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -213,6 +214,21 @@ export async function fetchAllUsers(): Promise<AppUser[]> {
 export async function setUserStatus(uid: string, status: UserStatus): Promise<void> {
   if (useMock) return;
   await updateDoc(doc(getDb(), 'users', uid), { status });
+}
+
+/**
+ * 회원과 홈피를 지운다 (관리자 전용).
+ *
+ * Storage 규칙상 본인만 파일을 지울 수 있어, 여기서는 Firestore 문서만 삭제한다.
+ * 문서가 사라지면 허브와 개별 홈피에서는 즉시 없어진다.
+ * 올렸던 사진·음원 파일까지 지우려면 서비스 계정으로 도는
+ * `npm run admin -- delete <이메일>` 을 쓴다.
+ */
+export async function deleteUserAndProfile(uid: string): Promise<void> {
+  if (useMock) return;
+  const db = getDb();
+  await deleteDoc(doc(db, 'profiles', uid)).catch(() => {});
+  await deleteDoc(doc(db, 'users', uid));
 }
 
 export async function saveUserOrder(orders: { uid: string; order: number }[]): Promise<void> {

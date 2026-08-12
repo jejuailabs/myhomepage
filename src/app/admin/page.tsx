@@ -4,7 +4,12 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import ThemeToggle from '@/components/ThemeToggle';
-import { fetchAllUsers, saveUserOrder, setUserStatus } from '@/lib/repo';
+import {
+  deleteUserAndProfile,
+  fetchAllUsers,
+  saveUserOrder,
+  setUserStatus,
+} from '@/lib/repo';
 import type { AppUser, UserStatus } from '@/lib/types';
 
 const STATUS_LABEL: Record<UserStatus, string> = {
@@ -45,6 +50,28 @@ export default function AdminPage() {
       setUsers((prev) => prev?.map((u) => (u.uid === uid ? { ...u, status } : u)) ?? prev);
     } finally {
       setBusy(false);
+    }
+  };
+
+  /** 되돌릴 수 없는 작업이라 한 번 더 확인받는다 */
+  const remove = async (user: AppUser) => {
+    const ok = window.confirm(
+      `${user.displayName} 님의 홈피를 지웁니다.\n` +
+        `되돌릴 수 없습니다. 계속할까요?`,
+    );
+    if (!ok) return;
+
+    setBusy(true);
+    try {
+      await deleteUserAndProfile(user.uid);
+      setUsers((prev) => prev?.filter((u) => u.uid !== user.uid) ?? prev);
+      setToast(`${user.displayName} 님의 홈피를 지웠습니다.`);
+    } catch (e) {
+      console.error(e);
+      setToast('삭제하지 못했습니다.');
+    } finally {
+      setBusy(false);
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -142,6 +169,15 @@ export default function AdminPage() {
                 <option value="approved">공개</option>
                 <option value="rejected">비공개</option>
               </select>
+
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void remove(u)}
+                className="shrink-0 rounded-lg border border-red-300 px-2 py-1.5 text-[12px] font-semibold text-red-500 disabled:opacity-40"
+              >
+                삭제
+              </button>
             </div>
           ))
         )}

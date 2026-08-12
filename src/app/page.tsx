@@ -90,7 +90,16 @@ export default function HubPage() {
           불러오는 중…
         </div>
       ) : (
-        <HeroCarousel cards={cards} />
+        // 본인 카드를 맨 앞에 둔다. 저장하고 돌아왔을 때 바로 확인되도록.
+        <HeroCarousel
+          cards={
+            appUser
+              ? [...cards].sort(
+                  (a, b) => Number(b.uid === appUser.uid) - Number(a.uid === appUser.uid),
+                )
+              : cards
+          }
+        />
       )}
 
       {(error || syncError) && (
