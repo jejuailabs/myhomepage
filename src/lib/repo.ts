@@ -52,6 +52,7 @@ export async function fetchHeroCards(): Promise<HeroCard[]> {
         heroSummary: p.heroSummary,
         conceptId: p.conceptId,
         order: u.order ?? 0,
+        visibility: p.visibility ?? 'public',
       } satisfies HeroCard;
     })
     .filter((c): c is HeroCard => c !== null)

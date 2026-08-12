@@ -42,10 +42,18 @@ export interface ImageCaption {
   caption: string;
 }
 
+/**
+ * 공개 범위.
+ * - public:  누구나 전체 내용을 본다
+ * - private: 사진(얼굴)은 그대로 보이지만 텍스트 기반 내용은 블러 처리된다. 본인은 원본을 본다.
+ */
+export type Visibility = 'public' | 'private';
+
 /** Firestore: profiles/{uid} */
 export interface Profile {
   uid: string;
   conceptId: ConceptId;
+  visibility: Visibility;
 
   heroImageUrl: string;
   heroSummary: string;
@@ -78,6 +86,7 @@ export interface HeroCard {
   heroSummary: string;
   conceptId: ConceptId;
   order: number;
+  visibility: Visibility;
 }
 
 /** Firestore: settings/hub */
@@ -89,6 +98,7 @@ export interface HubSettings {
 export const emptyProfile = (uid: string, conceptId: ConceptId = 'cream_elegant'): Profile => ({
   uid,
   conceptId,
+  visibility: 'public',
   heroImageUrl: '',
   heroSummary: '',
   profileImageUrl: '',

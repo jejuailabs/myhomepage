@@ -16,6 +16,7 @@ const make = (
   heroSummary: string,
   slogan: string,
   photo: string,
+  visibility: Profile['visibility'] = 'public',
 ): MockEntry => ({
   user: {
     uid: `mock-${slug}`,
@@ -30,6 +31,7 @@ const make = (
   profile: {
     uid: `mock-${slug}`,
     conceptId,
+    visibility,
     heroImageUrl: img(photo),
     heroSummary,
     profileImageUrl: img(photo, 600),
@@ -99,6 +101,7 @@ export const MOCK_ENTRIES: MockEntry[] = [
     '동네 아이들 이름을 다 외우는 사람. 꽃 심는 일이 제일 즐겁습니다.',
     '작은 것에도 오래 웃을 줄 아는 사람',
     'photo-1534528741775-53994a69daeb',
+    'private', // 비공개 홈피 동작 확인용 샘플
   ),
   make(
     3,
@@ -138,6 +141,7 @@ export const mockHeroCards = (): HeroCard[] =>
     heroSummary: profile.heroSummary,
     conceptId: profile.conceptId,
     order: user.order,
+    visibility: profile.visibility,
   })).sort((a, b) => a.order - b.order);
 
 export const mockBySlug = (slug: string): MockEntry | null =>

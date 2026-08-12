@@ -92,13 +92,26 @@ export default function HeroCarousel({ cards }: { cards: HeroCard[] }) {
                 <span className="absolute bottom-4 left-5 text-[26px] font-bold tracking-tight text-white drop-shadow">
                   {card.displayName}
                 </span>
+                {card.visibility === 'private' && (
+                  <span className="absolute right-4 top-4 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+                    🔒 비공개
+                  </span>
+                )}
               </div>
 
-              {/* 요약 영역 */}
+              {/* 요약 영역 — 비공개 홈피는 사진만 두고 글은 가린다 */}
               <div className="flex h-[20%] items-center px-5">
-                <p className="line-clamp-3 text-[14px] leading-relaxed text-hub-muted">
+                <p
+                  className={`line-clamp-3 text-[14px] leading-relaxed text-hub-muted ${
+                    card.visibility === 'private' ? 'select-none blur-[5px]' : ''
+                  }`}
+                  aria-hidden={card.visibility === 'private'}
+                >
                   {card.heroSummary}
                 </p>
+                {card.visibility === 'private' && (
+                  <span className="sr-only">비공개 홈피입니다</span>
+                )}
               </div>
             </button>
           </div>

@@ -132,6 +132,40 @@ export default function MyPage() {
             </div>
           </Card>
 
+          {/* 공개 범위 */}
+          <Card title="공개 범위">
+            <div className="grid grid-cols-2 gap-2.5">
+              {(
+                [
+                  { id: 'public', icon: '🌏', title: '공개', desc: '누구나 전체 내용을 봅니다' },
+                  {
+                    id: 'private',
+                    icon: '🔒',
+                    title: '비공개',
+                    desc: '사진만 보이고 글은 흐리게 가려집니다',
+                  },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => patch({ visibility: opt.id })}
+                  className={`rounded-xl border p-3 text-left transition ${
+                    profile.visibility === opt.id
+                      ? 'border-hub-text bg-hub-bg'
+                      : 'border-hub-border'
+                  }`}
+                >
+                  <span className="text-[16px]">{opt.icon}</span>
+                  <span className="mt-1 block text-[13px] font-bold">{opt.title}</span>
+                  <span className="mt-0.5 block text-[11px] leading-tight text-hub-muted">
+                    {opt.desc}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </Card>
+
           {/* 허브 카드 */}
           <Card title="허브 카드 (메인 화면 노출)">
             <ImageField

@@ -1,13 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { use, useEffect, useState } from 'react';
+import { use, useCallback, useEffect, useState } from 'react';
+import { useAuth } from '@/components/AuthProvider';
 import ProfileView from '@/components/homepage/ProfileView';
-import { fetchBySlug } from '@/lib/repo';
+import { fetchBySlug, saveProfile } from '@/lib/repo';
 import type { AppUser, Profile } from '@/lib/types';
 
 export default function HomepagePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
+  const { appUser } = useAuth();
   const [data, setData] = useState<{ user: AppUser; profile: Profile } | null | 'loading'>(
     'loading',
   );
@@ -20,6 +22,14 @@ export default function HomepagePage({ params }: { params: Promise<{ slug: strin
         setData(null);
       });
   }, [slug]);
+
+  /** 본인이 이 화면에서 고친 텍스트 저장 */
+  const handleSave = useCallback(async (next: Profile) => {
+    await saveProfile(next.uid, next);
+    setData((prev) =>
+      prev && prev !== 'loading' ? { ...prev, profile: next } : prev,
+    );
+  }, []);
 
   if (data === 'loading') {
     return (
@@ -50,7 +60,13 @@ export default function HomepagePage({ params }: { params: Promise<{ slug: strin
 
   return (
     <main>
-      <ProfileView profile={data.profile} displayName={data.user.displayName} slug={slug} />
+      <ProfileView
+        profile={data.profile}
+        displayName={data.user.displayName}
+        slug={slug}
+        viewerUid={appUser?.uid}
+        onSave={handleSave}
+      />
     </main>
   );
 }

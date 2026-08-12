@@ -37,6 +37,10 @@ service cloud.firestore {
     }
 
     match /profiles/{uid} {
+      // 주의: visibility == 'private' 은 화면에서 텍스트를 블러 처리하는 표현상의 장치일 뿐,
+      // 이 규칙에서는 여전히 문서를 공개로 읽을 수 있다(허브 카드/사진 노출을 위해 필요).
+      // 실제로 남이 못 읽게 막으려면 비공개 필드를 별도 서브컬렉션으로 분리하고
+      // 그 경로에 `allow read: if isSelf(uid) || isAdmin();` 을 적용해야 한다.
       allow read: if true;
       allow create, update: if isSelf(uid) || isAdmin();
       allow delete: if isAdmin();
