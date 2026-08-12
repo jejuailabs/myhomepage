@@ -24,9 +24,36 @@ import { emptyProfile } from './types';
  * (환경변수 누락 시 가짜 데이터가 실서비스에 노출되는 것을 막기 위함).
  */
 
+/**
+ * Firestore 가 붙지 못하면(데이터베이스 미생성, 방화벽 등) SDK 는 오류 없이 무한 재시도한다.
+ * 그러면 화면이 "불러오는 중…" 에서 영원히 멈추므로, 일정 시간이 지나면 명확히 실패시킨다.
+ */
+const CONNECT_TIMEOUT_MS = 12_000;
+
+function withTimeout<T>(work: Promise<T>): Promise<T> {
+  return Promise.race([
+    work,
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              'Firestore에 연결하지 못했습니다. Firebase 콘솔에서 Firestore 데이터베이스가 ' +
+                '생성되어 있는지, 네트워크(사내망/VPN/방화벽)가 막고 있지 않은지 확인해 주세요.',
+            ),
+          ),
+        CONNECT_TIMEOUT_MS,
+      ),
+    ),
+  ]);
+}
+
 export async function fetchHeroCards(): Promise<HeroCard[]> {
   if (useMock) return mockHeroCards();
+  return withTimeout(loadHeroCards());
+}
 
+async function loadHeroCards(): Promise<HeroCard[]> {
   const db = getDb();
   const usersSnap = await getDocs(
     query(collection(db, 'users'), where('status', '==', 'approved')),
@@ -64,7 +91,12 @@ export async function fetchBySlug(
   slug: string,
 ): Promise<{ user: AppUser; profile: Profile } | null> {
   if (useMock) return mockBySlug(slug);
+  return withTimeout(loadBySlug(slug));
+}
 
+async function loadBySlug(
+  slug: string,
+): Promise<{ user: AppUser; profile: Profile } | null> {
   const db = getDb();
   const snap = await getDocs(
     query(collection(db, 'users'), where('slug', '==', slug), limit(1)),
@@ -112,7 +144,13 @@ export async function ensureUserDoc(params: {
     order: 999,
   };
   if (useMock) return base;
+  return withTimeout(createUserDoc(params, base));
+}
 
+async function createUserDoc(
+  params: { uid: string; displayName: string; photoURL?: string },
+  base: AppUser,
+): Promise<AppUser> {
   const db = getDb();
   const ref = doc(db, 'users', params.uid);
   const snap = await getDoc(ref);

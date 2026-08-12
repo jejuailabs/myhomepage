@@ -1,6 +1,6 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
-import { getFirestore, type Firestore } from 'firebase/firestore';
+import { initializeFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
 const config = {
@@ -38,5 +38,23 @@ function getFirebaseApp(): FirebaseApp {
 }
 
 export const getFirebaseAuth = (): Auth => getAuth(getFirebaseApp());
-export const getDb = (): Firestore => getFirestore(getFirebaseApp());
+
+let db: Firestore | null = null;
+
+/**
+ * Firestore 는 기본적으로 WebChannel 스트리밍으로 통신하는데,
+ * 사내망·VPN·방화벽·일부 백신이 이 스트림을 끊으면
+ * "Failed to get document because the client is offline" 오류가 난다.
+ * long polling 을 자동 감지하도록 켜서 그런 망에서도 붙게 한다.
+ * (그래도 안 되면 experimentalForceLongPolling: true 로 바꿔 강제한다.)
+ */
+export const getDb = (): Firestore => {
+  if (!db) {
+    db = initializeFirestore(getFirebaseApp(), {
+      experimentalAutoDetectLongPolling: true,
+    });
+  }
+  return db;
+};
+
 export const getBucket = (): FirebaseStorage => getStorage(getFirebaseApp());

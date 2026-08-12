@@ -9,7 +9,7 @@ import { fetchHeroCards } from '@/lib/repo';
 import type { HeroCard } from '@/lib/types';
 
 export default function HubPage() {
-  const { appUser, loading, signIn, logout } = useAuth();
+  const { appUser, loading, signIn, logout, syncError } = useAuth();
   const [cards, setCards] = useState<HeroCard[] | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +19,9 @@ export default function HubPage() {
       .then(setCards)
       .catch((e) => {
         console.error(e);
-        setError('홈피 목록을 불러오지 못했습니다.');
+        setError(
+          e instanceof Error && e.message ? e.message : '홈피 목록을 불러오지 못했습니다.',
+        );
         setCards([]);
       });
   }, []);
@@ -74,9 +76,9 @@ export default function HubPage() {
         <HeroCarousel cards={cards} />
       )}
 
-      {error && (
+      {(error || syncError) && (
         <p className="px-5 pb-2 text-center text-xs text-red-500" role="alert">
-          {error}
+          {error ?? syncError}
         </p>
       )}
 

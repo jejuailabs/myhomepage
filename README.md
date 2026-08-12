@@ -70,7 +70,17 @@ Firebase 없이도 6명의 샘플 데이터로 전체 화면(허브 / 개별 홈
 
 1. Firebase 콘솔에서 프로젝트 생성 → 웹앱 추가
 2. Authentication → Google 로그인 사용 설정 → 승인된 도메인에 Vercel 도메인 추가
-3. Firestore, Storage 활성화
+3. **Firestore Database 생성** (프로젝트만 만들면 DB 는 없는 상태), Storage 활성화
+
+> **"불러오는 중…" 에서 멈추거나 `client is offline` 이 뜬다면** 대부분 Firestore 데이터베이스가
+> 생성되지 않은 경우입니다. 아래로 바로 확인할 수 있습니다.
+>
+> ```bash
+> curl "https://firestore.googleapis.com/v1/projects/<projectId>/databases/(default)/documents/users?key=<apiKey>"
+> ```
+>
+> `The database (default) does not exist` 가 나오면 콘솔에서 Firestore Database 를 만들어야 합니다.
+> Web SDK 는 이 상황에서 오류 대신 무한 재시도를 하므로, 앱은 12초 후 안내 문구를 띄웁니다.
 4. `.env.local.example` 을 복사해 `.env.local` 작성, `NEXT_PUBLIC_USE_MOCK` 은 `false` 또는 삭제
 5. 규칙 배포:
 
