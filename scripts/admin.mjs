@@ -37,7 +37,7 @@ try {
   process.exit(1);
 }
 
-initializeApp({ cert: cert(serviceAccount), projectId: serviceAccount.project_id });
+initializeApp({ credential: cert(serviceAccount), projectId: serviceAccount.project_id });
 const db = getFirestore();
 const auth = getAuth();
 
